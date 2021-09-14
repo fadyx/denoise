@@ -1,0 +1,31 @@
+{
+	"env": {
+		"node": true,
+		"es6": true,
+		"es2020": true,
+		"jest": true
+	},
+	"plugins": ["prettier"],
+	"extends": [
+		"eslint:recommended",
+		"plugin:security/recommended",
+		"plugin:node/recommended",
+		"plugin:import/recommended",
+		"airbnb-base",
+		"prettier"
+	],
+	"parserOptions": {
+		"ecmaVersion": 11
+	},
+	"rules": {
+		"indent": "off",
+		"no-process-exit": "off",
+		"no-tabs": "off",
+		"no-underscore-dangle": "off",
+		"no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+		"node/exports-style": "error",
+		"quotes": ["error", "double"],
+		"import/extensions": ["error", "always", { "js": "always" }],
+		"prettier/prettier": "warn"
+	}
+}

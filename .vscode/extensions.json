@@ -1,0 +1,21 @@
+{
+	"recommendations": [
+		"aaron-bond.better-comments",
+		"alefragnani.bookmarks",
+		"christian-kohler.path-intellisense",
+		"dbaeumer.vscode-eslint",
+		"editorconfig.editorconfig",
+		"esbenp.prettier-vscode",
+		"mhutchie.git-graph",
+		"mikestead.dotenv",
+		"ms-azuretools.vscode-docker",
+		"orta.vscode-jest",
+		"pkief.material-icon-theme",
+		"psioniq.psi-header",
+		"redhat.vscode-yaml",
+		"shd101wyy.markdown-preview-enhanced",
+		"streetsidesoftware.code-spell-checker",
+		"visualstudioexptteam.vscodeintellicode",
+		"wmaurer.change-case"
+	]
+}

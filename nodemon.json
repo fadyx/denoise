@@ -1,0 +1,8 @@
+{
+	"ext": "js",
+	"delay": "0",
+	"verbose": true,
+	"colours": true,
+	"restartable": "rs",
+	"ignore": [".git/", "certificates/", "coverage/", "logs/", "node_modules/", "tests/"]
+}

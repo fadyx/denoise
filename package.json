@@ -1,0 +1,78 @@
+{
+	"name": "denoise",
+	"version": "0.0.1",
+	"description": "Anonymous social network with fleeting posts.",
+	"author": "fady",
+	"license": "Unlicense",
+	"private": true,
+	"type": "module",
+	"homepage": "https://github.com/fadybe/denoise#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/fadybe/denoise.git"
+	},
+	"bugs": {
+		"url": "https://github.com/fadybe/denoise/issues"
+	},
+	"engines": {
+		"node": ">=14.17",
+		"npm": ">=7.23.0"
+	},
+	"keywords": [
+		"Anonymous",
+		"Social Network",
+		"Social Media"
+	],
+	"main": "src/index.js",
+	"scripts": {
+		"start:production": "node -r dotenv/config src/index.js dotenv_config_path=.production.env",
+		"start:debug": "DEBUG=server:* node -r dotenv/config src/index.js dotenv_config_path=.production.env",
+		"dev": "npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
+		"dev:debug": "DEBUG=server:* npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
+		"git:log": "git log --graph --decorate --all --abbrev-commit --date=relative --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'",
+		"git:clean:execute": "git clean -nX",
+		"git:clean:dry": "git clean -ndX",
+		"git:status:ignored": "git status --ignored",
+		"git:status": "git status",
+		"test": "jest",
+		"coverage": "npx jest --coverage",
+		"test:watch": "npx jest --watch",
+		"format": "npx prettier --write \"./**/*.{js,jsx,json}\"",
+		"lint": "npx eslint \"{src,apps,libs,test}/**/*.js\" --fix",
+		"jsinspect": "npx jsinspect src",
+		"buddy": "npx buddy src",
+		"cloc": "npx cloc src"
+	},
+	"dependencies": {
+		"bcrypt": "^5.0.1",
+		"cors": "^2.8.5",
+		"debug": "^4.3.2",
+		"dotenv": "^10.0.0",
+		"express": "^4.17.1",
+		"helmet": "^4.6.0",
+		"http-errors": "^1.8.0",
+		"joi": "^17.4.2",
+		"jsonwebtoken": "^8.5.1",
+		"lodash": "^4.17.21",
+		"mongoose": "^6.0.5",
+		"morgan": "^1.10.0",
+		"pino": "^6.13.2",
+		"svgo": "^2.6.0"
+	},
+	"devDependencies": {
+		"buddy.js": "^0.9.3",
+		"cloc": "^2.8.0",
+		"eslint": "^7.32.0",
+		"eslint-config-airbnb-base": "^14.2.1",
+		"eslint-config-prettier": "^8.3.0",
+		"eslint-plugin-import": "^2.24.2",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-prettier": "^4.0.0",
+		"eslint-plugin-security": "^1.4.0",
+		"jest": "^27.2.0",
+		"jsinspect": "^0.12.7",
+		"nodemon": "^2.0.12",
+		"prettier": "2.4.0",
+		"supertest": "^6.1.6"
+	}
+}

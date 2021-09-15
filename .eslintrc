@@ -2,7 +2,7 @@
 	"env": {
 		"node": true,
 		"es6": true,
-		"es2020": true,
+		"es2021": true,
 		"jest": true
 	},
 	"plugins": ["prettier"],
@@ -12,10 +12,11 @@
 		"plugin:node/recommended",
 		"plugin:import/recommended",
 		"airbnb-base",
-		"prettier"
+		"prettier",
+		"plugin:prettier/recommended"
 	],
 	"parserOptions": {
-		"ecmaVersion": 11
+		"ecmaVersion": 12
 	},
 	"rules": {
 		"indent": "off",

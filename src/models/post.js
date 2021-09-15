@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
+import twitter from "twitter-text";
+
 import _ from "lodash";
 
 import postProperties from "./properties/post.js";
-import getHashtags from "../utils/text/index.js";
 
 const { Schema } = mongoose;
 
@@ -144,7 +145,7 @@ PostSchema.pre("save", async function pre(next) {
 	const post = this;
 
 	if (post.isNew) {
-		const extractedHashtags = getHashtags(post.content);
+		const extractedHashtags = twitter.extractHashtags(post.content);
 		post.hashtags = _.uniq(extractedHashtags);
 	}
 

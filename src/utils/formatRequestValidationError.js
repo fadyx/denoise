@@ -1,5 +1,6 @@
 import _ from "lodash";
 
+// Format Joi errors
 const formatRequestValidationError = (inputError) => {
 	const formattedError = {};
 	if (inputError.details) {

@@ -1,16 +1,17 @@
 import express from "express";
 
-import auth from "../middleware/auth.js";
-import validator from "../middleware/validators/post.js";
+import { auth } from "../middleware/auth.js";
+import validate from "../middleware/validate.js";
+import { postSchemas, commentSchemas } from "../validations/index.js";
 import controller from "../controllers/post.js";
 
 const router = express.Router({ caseSensitive: true, strict: true });
 
 router.get("/newsfeed/:type", auth, controller.newsfeed);
-router.post("/", auth, validator.createPost, controller.createPost);
+router.post("/", auth, validate(postSchemas.createPostSchema), controller.createPost);
 router.get("/:postId", auth, controller.getPost);
 router.delete("/:postId", auth, controller.deletePost);
-router.post("/:postId/comments", auth, validator.createComment, controller.createComment);
+router.post("/:postId/comments", auth, validate(commentSchemas.createCommentSchema), controller.createComment);
 router.delete("/:postId/comments/:commentId", auth, controller.deleteComment);
 router.post("/:postId/love", auth, controller.lovePost);
 router.post("/:postId/unlove", auth, controller.unlovePost);

@@ -1,10 +1,8 @@
-import createError from "http-errors";
+import httpError from "http-errors";
 import mongoose from "mongoose";
 
 import Post from "../models/post.js";
 import Comment from "../models/comment.js";
-
-import isObjectId from "../utils/isObjectId.js";
 
 const createPost = async (req, res, next) => {
 	try {
@@ -29,12 +27,11 @@ const getPost = async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
-		if (!post || !(await user.isCommunicableWithId(post.userId)))
-			return next(createError(404, "post was not found."));
+		if (!post || !(await user.isCommunicableWithId(post.userId))) return next(httpError(404, "post was not found."));
 
 		const isLoved = post.lovers.includes(user._id);
 
@@ -49,13 +46,13 @@ const createComment = async (req, res, next) => {
 	const { postId } = req.params;
 	const validatedPost = req.validRequest;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
-		if (!post) return next(createError(404, "post was not found."));
-		if (!(await commenter.isCommunicableWithId(post.userId))) return next(createError(404, "post was not found."));
-		if (!post.allowComments) return next(createError(403, "comments are not allowed on this post."));
+		if (!post) return next(httpError(404, "post was not found."));
+		if (!(await commenter.isCommunicableWithId(post.userId))) return next(httpError(404, "post was not found."));
+		if (!post.allowComments) return next(httpError(403, "comments are not allowed on this post."));
 
 		const comment = new Comment({
 			userId: commenter._id,
@@ -79,15 +76,15 @@ const deletePost = async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
 
 		if (!post || post.deleted || !(await user.isCommunicableWithId(post.userId)))
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 
-		if (!user._id.equals(post.userId)) return next(createError(403));
+		if (!user._id.equals(post.userId)) return next(httpError(403));
 
 		await post.deletePost();
 		await post.save();
@@ -101,21 +98,21 @@ const deleteComment = async (req, res, next) => {
 	const { postId } = req.params;
 	const { commentId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
-	if (!isObjectId(commentId)) return next(createError(404, "comment was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
+	if (!isObjectId(commentId)) return next(httpError(404, "comment was not found."));
 
 	try {
 		const post = await Post.findById(postId);
 		if (!post || post.deleted || !(await req.user.isCommunicableWithId(post.userId))) {
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 		}
 
 		const comment = await Comment.findById(commentId);
 		if (!comment || comment.deleted || !comment.postId.equals(post._id)) {
-			return next(createError(404, "comment was not found."));
+			return next(httpError(404, "comment was not found."));
 		}
 
-		if (!req.user._id.equals(comment.userId)) return next(createError(403));
+		if (!req.user._id.equals(comment.userId)) return next(httpError(403));
 
 		await comment.deleteComment();
 		await comment.save();
@@ -131,16 +128,16 @@ const deleteComment = async (req, res, next) => {
 const lovePost = async (req, res, next) => {
 	const { postId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
 
 		if (!post || post.deleted || !(await req.user.isCommunicableWithId(post.userId))) {
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 		}
 
-		if (post.lovers.includes(req.user._id)) return next(createError(403, "post is already loved."));
+		if (post.lovers.includes(req.user._id)) return next(httpError(403, "post is already loved."));
 
 		await post.lovePost(req.user._id);
 		await post.save();
@@ -154,17 +151,17 @@ const unlovePost = async (req, res, next) => {
 	const { postId } = req.params;
 
 	if (!isObjectId(postId)) {
-		return next(createError(404, "post was not found."));
+		return next(httpError(404, "post was not found."));
 	}
 
 	try {
 		const post = await Post.findById(postId);
 
 		if (!post || post.deleted || !(await req.user.isCommunicableWithId(post.userId))) {
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 		}
 
-		if (!post.lovers.includes(req.user._id)) return next(createError(403, "post is already unloved."));
+		if (!post.lovers.includes(req.user._id)) return next(httpError(403, "post is already unloved."));
 
 		await post.unlovePost(req.user._id);
 		await post.save();
@@ -177,13 +174,13 @@ const unlovePost = async (req, res, next) => {
 const getPostLovers = async (req, res, next) => {
 	const { postId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
 
 		if (!post || post.deleted || !(await req.user.isCommunicableWithId(post.userId))) {
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 		}
 
 		// if (!post.userId.equals(req.user._id))
@@ -199,13 +196,13 @@ const getPostComments = async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
-	if (!isObjectId(postId)) return next(createError(404, "post was not found."));
+	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
 	try {
 		const post = await Post.findById(postId);
 
 		if (!post || post.deleted || !(await req.user.isCommunicableWithId(post.userId))) {
-			return next(createError(404, "post was not found."));
+			return next(httpError(404, "post was not found."));
 		}
 
 		// if (post.userId.equals(req.user._id)) {
@@ -235,7 +232,7 @@ const newsfeed = async (req, res, next) => {
 	const { lastPostId } = req.query;
 	const { type } = req.params;
 
-	if (lastPostId && !isObjectId(lastPostId)) return next(createError(400, "invalid pagination key."));
+	if (lastPostId && !isObjectId(lastPostId)) return next(httpError(400, "invalid pagination key."));
 
 	try {
 		const match = { deleted: false };
@@ -257,7 +254,7 @@ const newsfeed = async (req, res, next) => {
 				sort = { loversCounter: -1 };
 				break;
 			default:
-				return next(createError(400, "invalid newsfeed type."));
+				return next(httpError(400, "invalid newsfeed type."));
 		}
 
 		// const posts = await Post.find(match).sort(sort).limit(limit);

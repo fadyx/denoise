@@ -1,20 +1,10 @@
 import http from "http";
-import path, { dirname } from "path";
-import { fileURLToPath } from "url";
-
-import Debug from "debug";
 
 import database from "./database/database.js";
 import app from "./app.js";
-import logger from "./lib/logger.js";
+import Logger from "./lib/logger.js";
 
-const debug = Debug("server:index");
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const __filePath = path.relative(path.dirname(__dirname), __filename);
-
-const log = logger.child({ origin: __filePath });
+const logger = new Logger("index");
 
 const port = process.env.PORT || 3013;
 
@@ -25,15 +15,15 @@ const server = http.createServer(app);
 async function onListening() {
 	const addr = server.address();
 	const bind = typeof addr === "string" ? `pipe ${addr}` : `port ${addr.port}`;
-	debug(`HTTP server is up and running on ${bind}`);
+	logger.debug(`HTTP server is up and running on ${bind}`);
 }
 
 async function onClose() {
-	debug("Server is shutdown...");
+	logger.debug("Server is shutdown...");
 }
 
 async function onError(error) {
-	log.error(error);
+	logger.log(error);
 
 	await database.disconnect();
 
@@ -43,10 +33,10 @@ async function onError(error) {
 
 	switch (error.code) {
 		case "EACCES":
-			debug(`${bind} requires elevated privileges.`);
+			logger.debug(`${bind} requires elevated privileges.`);
 			process.exit(1);
 		case "EADDRINUSE":
-			debug(`${bind} is already in use.`);
+			logger.debug(`${bind} is already in use.`);
 			process.exit(2);
 		default:
 			process.exit(3);
@@ -58,16 +48,16 @@ server.on("listening", onListening);
 server.on("close", onClose);
 
 process.on("unhandledRejection", async (reason, promise) => {
-	debug("Unhandled rejection at promise: ", promise, "reason: ", reason);
-	log.error(reason);
+	logger.debug("Unhandled rejection at promise: ", promise, "reason: ", reason);
+	logger.log(reason);
 	await database.disconnect();
 	await server.close();
 	process.exit(7);
 });
 
 process.on("uncaughtException", async (error) => {
-	debug("Uncaught Exception thrown. Error: ", error);
-	log.error(error);
+	logger.debug("Uncaught Exception thrown. Error: ", error);
+	logger.log(error);
 	await database.disconnect();
 	await server.close();
 	process.exit(8);
@@ -81,17 +71,16 @@ const gracefulExit = async () => {
 
 process.on("SIGINT", gracefulExit);
 process.on("SIGTERM", gracefulExit);
-process.on("exit", (code) => debug(`Exiting with code: ${code}.`));
+process.on("exit", (code) => logger.debug(`Exiting with code: ${code}.`));
 
 const bootstrap = async () => {
-	debug(`Starting server v${process.env.npm_package_version}...`);
-	debug(`Environment: ${process.env.NODE_ENV}...`);
+	logger.debug(`Starting server v${process.env.npm_package_version}...`);
+	logger.debug(`Environment: ${process.env.NODE_ENV}...`);
 
 	try {
 		await database.connect();
 	} catch (error) {
-		debug(error);
-		log.error(error);
+		logger.log(error);
 		process.exit(4);
 	}
 
@@ -99,8 +88,7 @@ const bootstrap = async () => {
 		await server.listen(app.get("port"));
 	} catch (error) {
 		await database.disconnect();
-		debug(error);
-		log.error(error);
+		logger.log(error);
 		process.exit(5);
 	}
 };

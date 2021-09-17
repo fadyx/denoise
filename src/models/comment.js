@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 
-import commentProperties from "./properties/comment.js";
-
 const { Schema } = mongoose;
 
 const commentSchema = new Schema(
@@ -35,8 +33,8 @@ const commentSchema = new Schema(
 			type: String,
 			trim: true,
 			required: [true, "content is required."],
-			maxlength: commentProperties.content.maxLength,
-			minlength: commentProperties.content.minlength,
+			// maxlength: commentProperties.content.maxLength,
+			// minlength: commentProperties.content.minlength,
 		},
 
 		deleted: {

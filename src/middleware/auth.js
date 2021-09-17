@@ -1,37 +1,35 @@
-import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import createError from "http-errors";
+import httpError from "http-errors";
 
-const User = mongoose.model("User");
+import { roles } from "../constants/role.js";
+import catchAsync from "./catchAsyncErrors.js";
 
-const auth = async (req, res, next) => {
-	try {
-		const paths = ["/me/terminate"];
+const auth = catchAsync(async (req, res, next) => {
+	if (!req.headers.authorization || req.headers.authorization.split(" ").shift() !== "Bearer")
+		return next(httpError(401, "unauthenticated."));
 
-		let select;
-		if (paths.includes(req.path)) select = "+password";
+	const token = req.headers.authorization.split(" ").pop();
+	const decodedToken = jwt.verify(token, process.env.JWTSECRETKEY);
 
-		if (!req.headers.authorization || req.headers.authorization.split(" ").shift() !== "Bearer")
-			return next(createError(401, "unauthenticated."));
+	req.decodedToken = decodedToken;
+	return next();
+});
 
-		const token = req.headers.authorization.split(" ").pop();
-		const decodedToken = jwt.verify(token, process.env.JWTSECRETKEY);
-
-		const user = await User.findOne({
-			_id: decodedToken._id,
-			token,
-		})
-			.select(select)
-			.exec();
-
-		if (!user) return next(createError("Invalid token."));
-
-		req.user = user;
-
+const checkRole = catchAsync(async (role) => {
+	return async (req, res, next) => {
+		if (!roles.includes(role) || req.decodedToken.role !== role) {
+			return res.status(400).json({ error: `This route requires ${role} role.` });
+		}
 		return next();
-	} catch (error) {
-		return next(error);
-	}
-};
+	};
+});
 
-export default auth;
+const validateRefreshToken = catchAsync(async (req, res, next) => {
+	const refreshToken = req.headers["x-refresh-token"];
+	if (!refreshToken) return next(httpError(401, "Unauthorized."));
+	const decodedRefreshToken = jwt.verify(refreshToken, process.env.JWTSECRETKEY);
+	req.decodedRefreshToken = decodedRefreshToken;
+	return next();
+});
+
+export { auth, checkRole, validateRefreshToken };

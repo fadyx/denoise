@@ -1,400 +1,166 @@
-import createError from "http-errors";
+import httpError from "http-errors";
+import _ from "lodash";
 
 import Post from "../models/post.js";
 import User from "../models/user.js";
+import catchAsync from "../middleware/catchAsyncErrors.js";
+import RunUnitOfWork from "../database/RunUnitOfWork.js";
 
-import isObjectId from "../utils/isObjectId.js";
+import text from "../utils/text.js";
 
-const signup = async (req, res, next) => {
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
-
-		try {
-			const newUserInfo = req.validRequest;
-			const newUser = new User(newUserInfo);
-			await newUser.$session(session);
-			const token = await newUser.generateAuthToken();
-			await newUser.save();
-
-			const blockingUsers = await User.find({ blockedUUIDS: newUser.uuid }).session(session).exec();
-
-			if (blockingUsers) {
-				const blocking = [];
-				const saving = [];
-
-				blockingUsers.forEach((blockingUser) => {
-					blocking.push(blockingUser.uuidBlockUser(newUser));
-					saving.push(blockingUser.save());
-				});
-
-				await Promise.all(blocking);
-				await Promise.all(saving);
-			}
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.header("x-auth-token", token).status(201).json(newUser);
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
+const updateProfile = async (req, res, _next) => {
+	const { id } = req.decodedToken;
+	const updates = req.body;
+	const user = await User.findById(id);
+	_.assign(user, updates);
+	await user.save();
+	const accessToken = user.generateAccessToken();
+	return res.status(200).json({ user, tokens: { access: accessToken } });
 };
 
-const login = async (req, res, next) => {
-	const credentials = req.validRequest;
-	try {
-		const user = await User.findByCredentials(credentials.username, credentials.password);
-		const token = await user.generateAuthToken();
-		await user.save();
-		return res.header("x-auth-token", token).status(200).json(user);
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const resetPassword = async (req, res, next) => {
-	const validatedRequestBody = req.validRequest;
-	try {
-		const user = await User.findByCredentials(validatedRequestBody.username, validatedRequestBody.password);
-		user.password = validatedRequestBody.newpassword;
-		const token = await user.generateAuthToken();
-		await user.save();
-		return res.header("x-auth-token", token).status(200).json();
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const logout = async (req, res, next) => {
-	const { user } = req;
-	try {
-		await user.logout();
-		await user.save();
-		return res.status(200).json();
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const updateProfile = async (req, res, next) => {
-	const { user } = req;
-	const validUpdates = req.validRequest;
-
-	try {
-		await user.updateProfile(validUpdates);
-		await user.save();
-		return res.status(200).json(user);
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const myProfile = async (req, res) => {
-	const { user } = req;
+const myProfile = catchAsync(async (req, res) => {
+	const { id } = req.decodedToken;
+	const user = await User.findById(id);
 	return res.status(200).json(user);
-};
+});
 
-const getUser = async (req, res, next) => {
-	const { user } = req;
-	const { userId } = req.params;
+const getUser = catchAsync(async (req, res, next) => {
+	const { id } = req.decodedToken;
+	const user = await User.findById(id);
+	const requestedUsername = req.params.username;
+	if (!text.isValidUsername(requestedUsername)) return next(httpError(404, "User is not found."));
+	if (user.username === requestedUsername) return res.status(200).json(user);
+	const requestedUser = await User.findByUsername(requestedUsername);
+	if (!user.isMutuallyVisibleWith(requestedUser)) return next(httpError(404, "user is not found."));
+	const isFollowed = user.followees.includes(requestedUser._id);
+	return res.status(200).json({ ...requestedUser.toJSON(), isFollowed });
+});
 
-	if (!isObjectId(userId)) return next(createError(404, "user is not found."));
-	if (user._id.equals(userId)) return res.status(200).json(user);
+const follow = catchAsync(async (req, res, next) => {
+	const followerUsername = req.decodedToken.username;
+	const followeeUsername = req.params.username;
 
-	try {
-		const otherUser = await User.findById(userId);
-		if (!otherUser || !(await user.isCommunicableWith(otherUser)))
-			return next(createError(404, "user is not found."));
+	if (!text.isValidUsername(followeeUsername)) return next(httpError(404, "User not found."));
+	if (followerUsername === followeeUsername) return next(httpError(406, "Cannot follow oneself."));
 
-		const isFollowed = user._id.equals(userId) ? null : user.followees.includes(userId);
+	const follower = await User.findByUsername(followerUsername);
+	const followee = await User.findByUsername(followeeUsername);
+	if (!followee) throw httpError(404, "User not found.");
+	follower.followUser(followee);
 
-		return res.status(200).json({ ...otherUser.toJSON(), isFollowed });
-	} catch (error) {
-		return next(error);
-	}
-};
+	const uow = async (session) => {
+		await follower.save({ session });
+		await followee.save({ session });
+	};
 
-const follow = async (req, res, next) => {
-	const followerId = req.user._id.toString();
-	const followeeId = req.params.userId;
+	await RunUnitOfWork(uow);
+	return res.status(200).json();
+});
 
-	if (!isObjectId(followeeId)) return next(createError(404, "user not found."));
+const unfollow = catchAsync(async (req, res, next) => {
+	const followerUsername = req.decodedToken.username;
+	const followeeUsername = req.params.username;
 
-	if (followerId === followeeId) return next(createError(406, "cannot follow oneself."));
+	if (!text.isValidUsername(followeeUsername)) return next(httpError(404, "User not found."));
+	if (followerUsername === followeeUsername) return next(httpError(406, "Cannot follow oneself."));
 
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
+	const follower = await User.findByUsername(followerUsername);
+	const followee = await User.findByUsername(followeeUsername);
+	if (!followee) throw httpError(404, "User not found.");
+	follower.unfollowUser(followee);
 
-		try {
-			const follower = await User.findById(followerId).session(session).exec();
-			const followee = await User.findById(followeeId).session(session).exec();
+	const uow = async (session) => {
+		await follower.save({ session });
+		await followee.save({ session });
+	};
 
-			if (!followee) throw createError(404, "user not found.");
+	await RunUnitOfWork(uow);
+	return res.status(200).json();
+});
 
-			await follower.followUser(followee);
+const block = catchAsync(async (req, res, next) => {
+	const blockerUsername = req.decodedToken.username;
+	const blockedUsername = req.params.username;
 
-			await follower.save();
-			await followee.save();
+	if (!text.isValidUsername(blockedUsername)) return next(httpError(404, "User not found."));
+	if (blockerUsername === blockedUsername) return next(httpError(406, "Cannot block oneself."));
 
-			await session.commitTransaction();
-			session.endSession();
+	const blockerUser = await User.findByUsername(blockerUsername);
+	const blockedUser = await User.findByUsername(blockedUsername);
+	if (!blockedUser) throw httpError(404, "User not found.");
+	blockerUser.blockUser(blockedUser);
 
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
+	const uow = async (session) => {
+		await blockerUser.save({ session });
+		await blockedUser.save({ session });
+	};
 
-const unfollow = async (req, res, next) => {
-	const followerId = req.user._id.toString();
-	const followeeId = req.params.userId;
+	await RunUnitOfWork(uow);
+	return res.status(200).json();
+});
 
-	if (!isObjectId(followeeId)) return next(createError(404, "user not found."));
+const unblock = catchAsync(async (req, res, next) => {
+	const blockerUsername = req.decodedToken.username;
+	const blockedUsername = req.params.username;
 
-	if (followerId === followeeId) return next(createError(406, "cannot unfollow oneself."));
+	if (!text.isValidUsername(blockedUsername)) return next(httpError(404, "User not found."));
+	if (blockerUsername === blockedUsername) return next(httpError(406, "Cannot unblock oneself."));
 
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
+	const blockerUser = await User.findByUsername(blockerUsername);
+	const blockedUser = await User.findByUsername(blockedUsername);
+	if (!blockedUser) throw httpError(404, "User not found.");
+	blockerUser.unblockUser(blockedUser);
 
-		try {
-			const follower = await User.findById(followerId).session(session).exec();
-			const followee = await User.findById(followeeId).session(session).exec();
+	const uow = async (session) => {
+		await blockerUser.save({ session });
+		await blockedUser.save({ session });
+	};
 
-			if (!followee) {
-				throw createError(404, "user not found.");
-			}
+	await RunUnitOfWork(uow);
+	return res.status(200).json();
+});
 
-			await follower.unfollowUser(followee);
-
-			await follower.save();
-			await followee.save();
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const block = async (req, res, next) => {
-	const userId = req.user._id.toString();
-	const otherUserId = req.params.userId;
-
-	if (!isObjectId(otherUserId)) return next(createError(404, "user not found."));
-
-	if (userId === otherUserId) return next(createError(406, "cannot block oneself."));
-
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
-
-		try {
-			const user = await User.findById(userId).session(session).exec();
-			const otherUser = await User.findById(otherUserId).session(session).exec();
-
-			if (!otherUser) throw createError(404, "user not found.");
-			await user.blockUser(otherUser);
-
-			await user.save();
-			await otherUser.save();
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const unblock = async (req, res, next) => {
-	const userId = req.user._id.toString();
-	const otherUserId = req.params.userId;
-
-	if (!isObjectId(otherUserId)) {
-		return next(createError(404, "user not found."));
-	}
-
-	if (userId === otherUserId) {
-		return next(createError(406, "cannot unblock oneself."));
-	}
-
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
-
-		try {
-			const user = await User.findById(userId).session(session).exec();
-			const otherUser = await User.findById(otherUserId).session(session).exec();
-
-			if (!otherUser) throw createError(404, "user not found.");
-
-			await user.unblockUser(otherUser);
-
-			await user.save();
-			await otherUser.save();
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const blockDevice = async (req, res, next) => {
-	const userId = req.user._id.toString();
-	const otherUserId = req.params.userId;
-
-	if (!isObjectId(otherUserId)) return next(createError(404, "user not found."));
-
-	if (userId === otherUserId) return next(createError(406, "cannot block oneself."));
-
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
-
-		try {
-			const user = await User.findById(userId).session(session).exec();
-			const otherUser = await User.findById(otherUserId).session(session).exec();
-			if (!otherUser || (await otherUser.isBlocking(user))) throw createError(404, "user not found.");
-			if (await user.isBlocking(otherUser)) throw createError(406, "user is already blocked.");
-
-			if (user.uuid === otherUser.uuid) {
-				await user.blockUser(otherUser);
-			} else {
-				const usersToBlock = await User.find({ uuid: otherUser.uuid }).session(session).exec();
-				if (usersToBlock) {
-					const blocking = [];
-					const saving = [];
-					usersToBlock.forEach((other) => {
-						blocking.push(user.uuidBlockUser(other));
-						saving.push(other.save());
-					});
-					await Promise.all(blocking);
-					await Promise.all(saving);
-				}
-				user.blockedUUIDS.addToSet(otherUser.uuid);
-			}
-
-			await user.save();
-			await otherUser.save();
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const myPosts = async (req, res, next) => {
+const myPosts = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { lastPostId } = req.query;
 
-	if (lastPostId && !isObjectId(lastPostId)) return next(createError(400, "invalid pagination key."));
+	if (lastPostId && !isObjectId(lastPostId)) return next(httpError(400, "invalid pagination key."));
 
 	try {
 		const posts = await Post.getUserPosts(user._id, lastPostId);
 		return res.status(200).json(posts);
 	} catch (error) {
-		return next(createError(500));
+		return next(httpError(500));
 	}
-};
+});
 
-const userPosts = async (req, res, next) => {
+const userPosts = catchAsync(async (req, res, next) => {
 	const { userId } = req.params;
 	const { lastPostId } = req.query;
 
 	if (!isObjectId(userId)) {
-		return createError(404, "user not found.");
+		return httpError(404, "user not found.");
 	}
 
 	if (lastPostId && !isObjectId(lastPostId)) {
-		return next(createError(400, "invalid pagination key."));
+		return next(httpError(400, "invalid pagination key."));
 	}
 
 	try {
 		const user = await User.findById(userId);
 
 		if (!user || !(await user.isCommunicableWith(req.user))) {
-			return next(createError(404, "user was not found."));
+			return next(httpError(404, "user was not found."));
 		}
 
 		const posts = await Post.getUserPosts(user._id, lastPostId);
 		return res.status(200).json(posts);
 	} catch (error) {
-		return next(createError(500));
+		return next(httpError(500));
 	}
-};
+});
 
-const terminate = async (req, res, next) => {
-	const { user } = req;
-
-	try {
-		const session = await User.startSession();
-		session.startTransaction();
-		const validRequestBody = req.validRequest;
-		try {
-			const isPasswordValid = await user.checkPassword(validRequestBody.password);
-			if (!isPasswordValid) return next(createError(401, "incorrect password."));
-			await user.deleteUser();
-			await user.save();
-
-			await Post.updateMany({ userId: user._id, deleted: false }, { deleted: true }, { session });
-
-			await session.commitTransaction();
-			session.endSession();
-
-			return res.status(200).json();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-			return next(error);
-		}
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const clear = async (req, res, next) => {
+const clear = catchAsync(async (req, res, next) => {
 	const { user } = req;
 
 	try {
@@ -413,23 +179,15 @@ const clear = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const blocked = async (req, res, next) => {
-	const { user } = req;
-
-	try {
-		await user.populateBlocked();
-		return res.status(200).json(user.blocked);
-	} catch (error) {
-		return next(error);
-	}
-};
+const blocked = catchAsync(async (req, res, next) => {
+	const user = await User.findById(req.decodedToken.id);
+	await user.populateBlocked();
+	return res.status(200).json(user.blocked);
+});
 
 export default {
-	signup,
-	login,
-	logout,
 	myProfile,
 	updateProfile,
 	getUser,
@@ -440,8 +198,5 @@ export default {
 	block,
 	unblock,
 	clear,
-	terminate,
-	blockDevice,
-	resetPassword,
 	blocked,
 };

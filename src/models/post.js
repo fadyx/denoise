@@ -3,8 +3,6 @@ import twitter from "twitter-text";
 
 import _ from "lodash";
 
-import postProperties from "./properties/post.js";
-
 const { Schema } = mongoose;
 
 const PostSchema = new Schema(
@@ -28,11 +26,11 @@ const PostSchema = new Schema(
 
 		content: {
 			type: String,
-			maxlength: [
-				postProperties.content.maxLength,
-				`content cannot exceed ${postProperties.content.maxLength} characters.`,
-			],
-			minlength: [postProperties.content.minLength, "content cannot be empty."],
+			// maxlength: [
+			// 	postProperties.content.maxLength,
+			// 	`content cannot exceed ${postProperties.content.maxLength} characters.`,
+			// ],
+			// minlength: [postProperties.content.minLength, "content cannot be empty."],
 			required: [true, "content is required."],
 		},
 
@@ -90,7 +88,7 @@ const PostSchema = new Schema(
 				type: String,
 				required: [true, "flag is required."],
 				enum: {
-					values: postProperties.flags.options,
+					// values: postProperties.flags.options,
 					message: "invalid flag input.",
 				},
 				index: true,

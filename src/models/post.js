@@ -19,7 +19,7 @@ const PostSchema = new Schema(
 			required: [true, "username is required."],
 		},
 
-		displayName: {
+		displayname: {
 			type: String,
 			required: [true, "display name is required."],
 		},
@@ -117,13 +117,12 @@ PostSchema.methods.toJSON = function toJSON() {
 	const publicPost = _.pick(user.toObject(), [
 		"_id",
 		"deleted",
-		"toxicityLevel",
 		"userId",
 		"lovers",
 		"updatedAt",
 		"__v",
 		"username",
-		"displayName",
+		"displaymame",
 		"flags",
 		"allowComments",
 		"hashtags",

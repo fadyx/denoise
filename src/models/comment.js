@@ -23,7 +23,7 @@ const commentSchema = new Schema(
 			required: [true, "username is required."],
 		},
 
-		displayName: {
+		displayname: {
 			type: String,
 			trim: true,
 			required: [true, "display name is required."],

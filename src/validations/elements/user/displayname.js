@@ -4,7 +4,7 @@ const MIN_LENGTH = 1;
 const MAX_LENGTH = 15;
 const LABEL = "display name";
 
-const displayName = Joi.string()
+const displayname = Joi.string()
 	.trim()
 	.normalize("NFKC")
 	.min(MIN_LENGTH)
@@ -21,4 +21,4 @@ const displayName = Joi.string()
 
 export { MIN_LENGTH, MAX_LENGTH, LABEL };
 
-export default displayName;
+export default displayname;

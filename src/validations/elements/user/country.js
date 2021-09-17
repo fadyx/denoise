@@ -8,7 +8,7 @@ const DEFAULT = Countries.EARTH.code;
 const country = Joi.string()
 	.trim()
 	.custom((value, helper) => {
-		if (!Countries.isCountryCode(value)) return helper.message("Invalid country code");
+		if (!Countries.isCountryCode(value)) return helper.message("invalid country code.");
 		return true;
 	})
 	.valid(...Countries.codes)

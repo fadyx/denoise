@@ -1,5 +1,6 @@
-import userSchemas from "./userSchemas.js";
+import authSchemas from "./authSchemas.js";
 import postSchemas from "./postSchemas.js";
 import commentSchemas from "./commentSchemas.js";
+import userSchemas from "./userSchemas.js";
 
-export { userSchemas, postSchemas, commentSchemas };
+export { authSchemas, userSchemas, postSchemas, commentSchemas };

@@ -10,7 +10,7 @@ const createPost = async (req, res, next) => {
 		const post = new Post({
 			userId: req.user._id,
 			username: req.user.username,
-			displayName: req.user.displayname,
+			displayname: req.user.displayname,
 			content: validatedPost.content,
 			allowComments: validatedPost.allowComments,
 			falgs: validatedPost.falgs,
@@ -59,7 +59,7 @@ const createComment = async (req, res, next) => {
 			postId: post._id,
 			deviceUuid: commenter.uuid,
 			username: commenter.username,
-			displayName: commenter.displayname,
+			displayname: commenter.displayname,
 			content: validatedPost.content,
 		});
 

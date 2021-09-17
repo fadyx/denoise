@@ -41,7 +41,7 @@ const userSchema = new Schema(
 			required: [true, "Password is required."],
 		},
 
-		displayName: {
+		displayname: {
 			type: String,
 			trim: true,
 			required: [true, "Display name is required."],
@@ -189,12 +189,6 @@ userSchema.pre("save", async function pre(next) {
 	next();
 });
 
-// userSchema.pre(/^find/, async function pre(next) {
-// 	this.find({ banned: false, deleted: false });
-// 	// this.populate({ path: "posts", select: "-location -address" });
-// 	next();
-// });
-
 userSchema.methods.toJSON = function toJSON() {
 	const user = this;
 	const publicUser = _.pick(user.toObject(), [
@@ -219,7 +213,7 @@ userSchema.methods.generateRefreshToken = async function generateRefreshToken() 
 		id: this._id,
 		username: this.username,
 	};
-	const token = jwt.sign(payload, process.env.JWTSECRETKEY, { expiresIn: 999999 });
+	const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRETKEY, { expiresIn: process.env.JWT_REFRESH_DURATION });
 	this.token = token;
 	return token;
 };
@@ -229,13 +223,19 @@ userSchema.methods.generateAccessToken = function generateAccessToken() {
 		id: this._id,
 		username: this.username,
 	};
-	const token = jwt.sign(payload, process.env.JWTSECRETKEY, { expiresIn: 999999 });
+	const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRETKEY, { expiresIn: process.env.JWT_ACCESS_DURATION });
 	return token;
 };
 
 userSchema.statics.findByCredentials = async function findByCredentials(username, password) {
 	const user = await this.findByUsername(username);
 	if (!user.checkPassword(password)) throw createError("Invalid credentials.");
+	return user;
+};
+
+userSchema.statics.findActiveUserById = async function findActiveUserById(id) {
+	const user = await this.findById(id);
+	if (!user || user.deleted || user.banned) throw createError("User is not found.");
 	return user;
 };
 
@@ -269,11 +269,11 @@ userSchema.methods.isBlocking = function isBlocking(otherUser) {
 	return false;
 };
 
-userSchema.methods.isMutuallyVisibleWith = function isMutuallyVisibleWith(otherUser) {
+userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(otherUser) {
 	const user = this;
-	if (user.id === otherUser.id) return true;
-	if (user.isBlocking(otherUser) || otherUser.isBlocking(user)) return false;
-	return true;
+	if (user.id === otherUser.id) return false;
+	if (user.isBlocking(otherUser) || otherUser.isBlocking(user)) return true;
+	return false;
 };
 
 userSchema.methods.isCommunicableWithId = async function isCommunicableWithId(otherUserId) {
@@ -293,7 +293,7 @@ userSchema.methods.isFollowing = function isFollowing(otherUser) {
 userSchema.methods.followUser = function followUser(followee) {
 	const user = this;
 
-	if (!user.isMutuallyVisibleWith(followee)) throw createError(404, "user is not found.");
+	if (user.isBlockingOrBlockedBy(followee)) throw createError(404, "user is not found.");
 	if (user.isFollowing(followee)) throw createError(406, "user is already followed.");
 
 	user.followees.addToSet(followee._id);
@@ -303,7 +303,7 @@ userSchema.methods.followUser = function followUser(followee) {
 userSchema.methods.unfollowUser = function unfollowUser(followee) {
 	const user = this;
 
-	if (!user.isMutuallyVisibleWith(followee)) throw createError(404, "user is not found.");
+	if (user.isBlockingOrBlockedBy(followee)) throw createError(404, "user is not found.");
 	if (!user.isFollowing(followee)) throw createError(406, "user is already unfollowed.");
 
 	user.followees.remove(followee._id);

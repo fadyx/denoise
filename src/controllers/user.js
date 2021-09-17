@@ -9,9 +9,8 @@ import RunUnitOfWork from "../database/RunUnitOfWork.js";
 import text from "../utils/text.js";
 
 const updateProfile = async (req, res, _next) => {
-	const { id } = req.decodedToken;
+	const { user } = req;
 	const updates = req.body;
-	const user = await User.findById(id);
 	_.assign(user, updates);
 	await user.save();
 	const accessToken = user.generateAccessToken();
@@ -19,21 +18,19 @@ const updateProfile = async (req, res, _next) => {
 };
 
 const myProfile = catchAsync(async (req, res) => {
-	const { id } = req.decodedToken;
-	const user = await User.findById(id);
+	const { user } = req;
 	return res.status(200).json(user);
 });
 
 const getUser = catchAsync(async (req, res, next) => {
-	const { id } = req.decodedToken;
-	const user = await User.findById(id);
-	const requestedUsername = req.params.username;
-	if (!text.isValidUsername(requestedUsername)) return next(httpError(404, "User is not found."));
-	if (user.username === requestedUsername) return res.status(200).json(user);
-	const requestedUser = await User.findByUsername(requestedUsername);
-	if (!user.isMutuallyVisibleWith(requestedUser)) return next(httpError(404, "user is not found."));
-	const isFollowed = user.followees.includes(requestedUser._id);
-	return res.status(200).json({ ...requestedUser.toJSON(), isFollowed });
+	const { user } = req;
+	const { username } = req.params;
+	if (!text.isValidUsername(username)) return next(httpError(404, "User is not found."));
+	if (user.username === username) return res.status(200).json(user);
+	const requestedUser = await User.findByUsername(username);
+	if (user.isBlockingOrBlockedBy(requestedUser)) return next(httpError(404, "user is not found."));
+	user.isFollowed = user.followees.includes(requestedUser._id);
+	return res.status(200).json({ ...requestedUser.toJSON() });
 });
 
 const follow = catchAsync(async (req, res, next) => {

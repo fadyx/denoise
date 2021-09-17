@@ -2,8 +2,8 @@ import Joi from "joi";
 
 import { CommentElements } from "./elements/index.js";
 
-const createCommentSchema = Joi.object({
+const createComment = Joi.object({
 	text: CommentElements.text.required(),
 });
 
-export default { createCommentSchema };
+export default { createComment };

@@ -36,7 +36,7 @@ const resetPassword = catchAsync(async (req, res, _next) => {
 const refresh = catchAsync(async (req, res, _next) => {
 	const refreshToken = req.headers["x-refresh-token"];
 	if (!refreshToken) return res.status(403).json({ message: "Refresh token is required." });
-	const decodedToken = jwt.verify(refreshToken, process.env.JWTSECRETKEY);
+	const decodedToken = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRETKEY);
 	const user = await User.findByUsername(decodedToken.username);
 	if (user.token !== refreshToken) throw httpError(httpStatus.UNAUTHORIZED, "Invalid token.");
 	const access = user.generateAccessToken();
@@ -46,7 +46,7 @@ const refresh = catchAsync(async (req, res, _next) => {
 const signout = catchAsync(async (req, res, _next) => {
 	const refreshToken = req.headers["x-refresh-token"];
 	if (!refreshToken) return res.status(403).json({ message: "Refresh token is required." });
-	const decodedToken = jwt.verify(refreshToken, process.env.JWTSECRETKEY);
+	const decodedToken = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRETKEY);
 	const user = await User.findByUsername(decodedToken.username);
 	if (user.token !== refreshToken) throw httpError(httpStatus.UNAUTHORIZED, "Invalid token.");
 	user.token = null;

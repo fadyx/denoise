@@ -10,7 +10,7 @@ const username = Joi.string()
 	.min(MIN_LENGTH)
 	.max(MAX_LENGTH)
 	.custom((value, helper) => {
-		if (!text.isValidUsername(value)) return helper.message("Invalid username format");
+		if (!text.isValidUsername(value)) return helper.message("invalid username format.");
 		return true;
 	})
 	.label(LABEL)

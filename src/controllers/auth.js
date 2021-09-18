@@ -58,7 +58,8 @@ const terminate = catchAsync(async (req, res, _next) => {
 	const { username, password } = req.body;
 	const uow = async (session) => {
 		const user = await User.findByCredentials(username, password);
-		user.terminate();
+		user.deleted = true;
+		user.token = null;
 		await user.save({ session });
 		await Post.updateMany({ userId: user._id, deleted: false }, { deleted: true }).session(session);
 	};

@@ -24,14 +24,9 @@ const PostSchema = new Schema(
 			required: [true, "display name is required."],
 		},
 
-		content: {
+		text: {
 			type: String,
-			// maxlength: [
-			// 	postProperties.content.maxLength,
-			// 	`content cannot exceed ${postProperties.content.maxLength} characters.`,
-			// ],
-			// minlength: [postProperties.content.minLength, "content cannot be empty."],
-			required: [true, "content is required."],
+			required: [true, "text is required."],
 		},
 
 		lovers: [
@@ -128,7 +123,7 @@ PostSchema.methods.toJSON = function toJSON() {
 		"hashtags",
 		"loversCounter",
 		"commentsCounter",
-		"content",
+		"text",
 		"createdAt",
 	]);
 
@@ -142,7 +137,7 @@ PostSchema.pre("save", async function pre(next) {
 	const post = this;
 
 	if (post.isNew) {
-		const extractedHashtags = twitter.extractHashtags(post.content);
+		const extractedHashtags = twitter.extractHashtags(post.text);
 		post.hashtags = _.uniq(extractedHashtags);
 	}
 
@@ -227,3 +222,8 @@ PostSchema.methods.populateLovers = async function populateLovers() {
 const Post = mongoose.model("Post", PostSchema);
 
 export default Post;
+
+// in the last five minutes
+// createdAt: {
+// 	$gte: new Date(new Date().getTime()-60*5*1000).toISOString()
+// }

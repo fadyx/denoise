@@ -10,33 +10,26 @@ const commentSchema = new Schema(
 			required: [true, "post id is required."],
 			index: true,
 		},
-
 		userId: {
 			type: Schema.Types.ObjectId,
 			ref: "User",
 			required: [true, "user id is required."],
 			index: true,
 		},
-
 		username: {
 			type: String,
 			required: [true, "username is required."],
 		},
-
 		displayname: {
 			type: String,
 			trim: true,
 			required: [true, "display name is required."],
 		},
-
-		content: {
+		text: {
 			type: String,
 			trim: true,
-			required: [true, "content is required."],
-			// maxlength: commentProperties.content.maxLength,
-			// minlength: commentProperties.content.minlength,
+			required: [true, "text is required."],
 		},
-
 		deleted: {
 			type: Boolean,
 			required: true,
@@ -60,5 +53,3 @@ commentSchema.methods.undeleteComment = async function undeleteComment() {
 const Comment = mongoose.model("Comment", commentSchema);
 
 export default Comment;
-
-// in post.js: comments:[commentSchema] is an alternative to this approach

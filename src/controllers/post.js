@@ -4,44 +4,39 @@ import mongoose from "mongoose";
 import Post from "../models/post.js";
 import Comment from "../models/comment.js";
 
-const createPost = async (req, res, next) => {
-	try {
-		const validatedPost = req.validRequest;
-		const post = new Post({
-			userId: req.user._id,
-			username: req.user.username,
-			displayname: req.user.displayname,
-			content: validatedPost.content,
-			allowComments: validatedPost.allowComments,
-			falgs: validatedPost.falgs,
-		});
+import catchAsync from "../middleware/catchAsyncErrors.js";
+import RunUnitOfWork from "../database/RunUnitOfWork.js";
+import text from "../utils/text.js";
 
-		await post.save();
-		return res.status(201).json(post);
-	} catch (error) {
-		return next(error);
-	}
-};
+const createPost = catchAsync(async (req, res, next) => {
+	const postDto = req.body;
+	const post = new Post({
+		userId: req.user._id,
+		username: req.user.username,
+		displayname: req.user.displayname,
+		text: postDto.text,
+		allowComments: postDto.allowComments,
+		falgs: postDto.falgs,
+	});
+	await post.save();
+	return res.status(201).json(post);
+});
 
-const getPost = async (req, res, next) => {
+const getPost = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
 	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
 
-	try {
-		const post = await Post.findById(postId);
-		if (!post || !(await user.isCommunicableWithId(post.userId))) return next(httpError(404, "post was not found."));
+	const post = await Post.findById(postId);
+	if (!post || !(await user.isCommunicableWithId(post.userId))) return next(httpError(404, "post was not found."));
 
-		const isLoved = post.lovers.includes(user._id);
+	const isLoved = post.lovers.includes(user._id);
 
-		return res.status(200).json({ ...post.toJSON(), isLoved });
-	} catch (error) {
-		return next(error);
-	}
-};
+	return res.status(200).json({ ...post.toJSON(), isLoved });
+});
 
-const createComment = async (req, res, next) => {
+const createComment = catchAsync(async (req, res, next) => {
 	const commenter = req.user;
 	const { postId } = req.params;
 	const validatedPost = req.validRequest;
@@ -60,7 +55,7 @@ const createComment = async (req, res, next) => {
 			deviceUuid: commenter.uuid,
 			username: commenter.username,
 			displayname: commenter.displayname,
-			content: validatedPost.content,
+			text: validatedPost.text,
 		});
 
 		await comment.save();
@@ -70,9 +65,9 @@ const createComment = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const deletePost = async (req, res, next) => {
+const deletePost = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
@@ -92,9 +87,9 @@ const deletePost = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const deleteComment = async (req, res, next) => {
+const deleteComment = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
 	const { commentId } = req.params;
 
@@ -123,9 +118,9 @@ const deleteComment = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const lovePost = async (req, res, next) => {
+const lovePost = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
 
 	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
@@ -145,9 +140,9 @@ const lovePost = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const unlovePost = async (req, res, next) => {
+const unlovePost = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
 
 	if (!isObjectId(postId)) {
@@ -169,9 +164,9 @@ const unlovePost = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const getPostLovers = async (req, res, next) => {
+const getPostLovers = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
 
 	if (!isObjectId(postId)) return next(httpError(404, "post was not found."));
@@ -190,9 +185,9 @@ const getPostLovers = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const getPostComments = async (req, res, next) => {
+const getPostComments = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 
@@ -225,9 +220,9 @@ const getPostComments = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const newsfeed = async (req, res, next) => {
+const newsfeed = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { lastPostId } = req.query;
 	const { type } = req.params;
@@ -281,11 +276,11 @@ const newsfeed = async (req, res, next) => {
 	} catch (error) {
 		return next(error);
 	}
-};
+});
 
-const reportPost = async (req, res, _next) => res.status(200).json();
+const reportPost = catchAsync(async (req, res, _next) => res.status(200).json());
 
-const reportComment = async (req, res, _next) => res.status(200).json();
+const reportComment = catchAsync(async (req, res, _next) => res.status(200).json());
 
 export default {
 	createPost,
@@ -332,6 +327,4 @@ await Post.updateOne(
   .catch((error) => {
     res.status(500).json();
   });
-
-
 */

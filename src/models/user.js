@@ -7,8 +7,6 @@ import createError from "http-errors";
 import uniqueErrorPlugin from "../lib/uniqueErrorPlugin.js";
 import text from "../utils/text.js";
 
-import * as usernameProperties from "../validations/elements/user/username.js";
-
 import * as bioProperties from "../validations/elements/user/bio.js";
 import * as countryProperties from "../validations/elements/user/country.js";
 import * as genderProperties from "../validations/elements/user/gender.js";
@@ -251,18 +249,6 @@ userSchema.methods.checkPassword = async function checkPassword(password) {
 	return isPasswordValid;
 };
 
-userSchema.methods.removeToken = async function removeToken() {
-	const user = this;
-	user.token = null;
-	await this.save();
-};
-
-userSchema.methods.terminate = async function terminate() {
-	const user = this;
-	user.deleted = true;
-	user.token = null;
-};
-
 userSchema.methods.isBlocking = function isBlocking(otherUser) {
 	const user = this;
 	if (user.blocked.includes(otherUser._id)) return true;
@@ -274,14 +260,6 @@ userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(otherU
 	if (user.id === otherUser.id) return false;
 	if (user.isBlocking(otherUser) || otherUser.isBlocking(user)) return true;
 	return false;
-};
-
-userSchema.methods.isCommunicableWithId = async function isCommunicableWithId(otherUserId) {
-	const user = this;
-	if (user._id.equals(otherUserId)) return true;
-	const otherUser = await mongoose.model("User").findById(otherUserId); //  instead of User.findById
-	if (!otherUser || (await user.isBlocking(otherUser)) || (await otherUser.isBlocking(user))) return false;
-	return true;
 };
 
 userSchema.methods.isFollowing = function isFollowing(otherUser) {
@@ -334,13 +312,10 @@ userSchema.methods.unblockUser = function unblockUser(otherUser) {
 
 userSchema.methods.getUserPosts = async function getUserPosts(lastPostId) {
 	const user = this;
-
 	const match = { deleted: false };
-
 	if (lastPostId) {
 		match._id = { $lt: lastPostId };
 	}
-
 	await user
 		.populate({
 			path: "posts",
@@ -357,7 +332,6 @@ userSchema.methods.getUserPosts = async function getUserPosts(lastPostId) {
 
 userSchema.methods.populateBlocked = async function populateBlocked() {
 	const user = this;
-
 	await user.populate({
 		path: "blocked",
 		select: "username displayname _id",

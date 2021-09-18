@@ -8,13 +8,10 @@ import User from "../models/user.js";
 const auth = catchAsync(async (req, res, next) => {
 	if (!req.headers.authorization || req.headers.authorization.split(" ").shift() !== "Bearer")
 		return next(httpError(401, "unauthenticated."));
-
 	const token = req.headers.authorization.split(" ").pop();
 	const decodedToken = jwt.verify(token, process.env.JWT_ACCESS_SECRETKEY);
-
 	const user = await User.findActiveUserById(decodedToken.id);
 	req.user = user;
-
 	req.decodedToken = decodedToken;
 	return next();
 });

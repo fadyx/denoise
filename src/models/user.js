@@ -227,7 +227,8 @@ userSchema.methods.generateAccessToken = function generateAccessToken() {
 
 userSchema.statics.findByCredentials = async function findByCredentials(username, password) {
 	const user = await this.findByUsername(username);
-	if (!user.checkPassword(password)) throw createError("Invalid credentials.");
+	const isValidPassword = await user.checkPassword(password);
+	if (!isValidPassword) throw createError("Invalid credentials.");
 	return user;
 };
 
@@ -255,10 +256,10 @@ userSchema.methods.isBlocking = function isBlocking(otherUser) {
 	return false;
 };
 
-userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(otherUser) {
+userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(otherUserId) {
 	const user = this;
-	if (user.id === otherUser.id) return false;
-	if (user.isBlocking(otherUser) || otherUser.isBlocking(user)) return true;
+	if (user.id === otherUserId) return false;
+	if (user.blocked.includes(otherUserId) || user.blocking.includes(otherUserId)) return true;
 	return false;
 };
 

@@ -7,12 +7,12 @@ import controller from "../controllers/post.js";
 
 const router = express.Router({ caseSensitive: true, strict: true });
 
-router.get("/newsfeed/:type", auth, controller.newsfeed);
 router.post("/", auth, validate(postSchemas.createPost), controller.createPost);
+router.post("/:postId/comments", auth, validate(commentSchemas.createComment), controller.createComment);
 router.get("/:postId", auth, controller.getPost);
 router.delete("/:postId", auth, controller.deletePost);
-router.post("/:postId/comments", auth, validate(commentSchemas.createCommentSchema), controller.createComment);
 router.delete("/:postId/comments/:commentId", auth, controller.deleteComment);
+router.get("/newsfeed/:type", auth, controller.newsfeed);
 router.post("/:postId/love", auth, controller.lovePost);
 router.post("/:postId/unlove", auth, controller.unlovePost);
 router.get("/:postId/lovers", auth, controller.getPostLovers);

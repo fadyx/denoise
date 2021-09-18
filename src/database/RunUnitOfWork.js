@@ -4,9 +4,10 @@ const RunUnitOfWork = async (uow) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 	try {
-		await uow(session);
+		const result = await uow(session);
 		await session.commitTransaction();
-		session.endSession();
+		await session.endSession();
+		return result;
 	} catch (error) {
 		await session.abortTransaction();
 		session.endSession();

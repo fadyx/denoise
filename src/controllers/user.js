@@ -13,8 +13,7 @@ const updateProfile = async (req, res, _next) => {
 	const updates = req.body;
 	_.assign(user, updates);
 	await user.save();
-	const accessToken = user.generateAccessToken();
-	return res.status(200).json({ user, tokens: { access: accessToken } });
+	return res.status(200).json({ user });
 };
 
 const myProfile = catchAsync(async (req, res) => {
@@ -28,7 +27,7 @@ const getUser = catchAsync(async (req, res, next) => {
 	if (!text.isValidUsername(username)) return next(httpError(404, "User is not found."));
 	if (user.username === username) return res.status(200).json(user);
 	const requestedUser = await User.findByUsername(username);
-	if (user.isBlockingOrBlockedBy(requestedUser)) return next(httpError(404, "User is not found."));
+	if (user.isBlockingOrBlockedBy(requestedUser._id)) return next(httpError(404, "User is not found."));
 	const isFollowed = user.followees.includes(requestedUser._id);
 	return res.status(200).json({ ...requestedUser.toJSON(), isFollowed });
 });
@@ -112,7 +111,7 @@ const userPosts = catchAsync(async (req, res) => {
 	if (!text.isValidUsername(username)) throw httpError(404, "User not found.");
 	if (lastPostId && !text.isValidObjectId(lastPostId)) throw httpError(400, "invalid pagination key.");
 	const requestedUser = await User.findByUsername(username);
-	if (!requestedUser || requestedUser.isBlockingOrBlockedBy(user)) throw httpError(404, "User was not found.");
+	if (!requestedUser || user.isBlockingOrBlockedBy(requestedUser._id)) throw httpError(404, "User was not found.");
 	const posts = await Post.getUserPosts(requestedUser.id, lastPostId);
 	return res.status(200).json(posts);
 });

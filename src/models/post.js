@@ -3,6 +3,8 @@ import twitter from "twitter-text";
 
 import _ from "lodash";
 
+import { flags } from "../constants/flag.js";
+
 const { Schema } = mongoose;
 
 const PostSchema = new Schema(
@@ -36,26 +38,11 @@ const PostSchema = new Schema(
 				ref: "User",
 			},
 		],
-		// lovers: {
-		//    type: [
-		//       {
-		//          type: mongoose.Types.ObjectId,
-		//          required: [true, "user id is required."],
-		//          ref: "User",
-		//       },
-		//    ],
-		//    select: false,
-		// },
 
 		loversCounter: {
 			type: Number,
 			default: 0,
 			index: true,
-		},
-
-		toxicityLevel: {
-			type: Number,
-			default: 0.1,
 		},
 
 		commentsCounter: {
@@ -83,7 +70,7 @@ const PostSchema = new Schema(
 				type: String,
 				required: [true, "flag is required."],
 				enum: {
-					// values: postProperties.flags.options,
+					values: flags,
 					message: "invalid flag input.",
 				},
 				index: true,
@@ -95,7 +82,6 @@ const PostSchema = new Schema(
 			required: true,
 			default: false,
 			index: true,
-			// select: false,
 		},
 	},
 	{ timestamps: true },
@@ -176,36 +162,6 @@ PostSchema.statics.getUserPosts = async function getUserPosts(userId, lastPostId
 		.limit(limit);
 
 	return userPosts;
-};
-
-PostSchema.methods.lovePost = async function lovePost(loverId) {
-	const post = this;
-	post.lovers.addToSet(loverId);
-};
-
-PostSchema.methods.unlovePost = async function unlovePost(loverId) {
-	const post = this;
-	post.lovers.remove(loverId);
-};
-
-PostSchema.methods.deletePost = async function deletePost() {
-	const post = this;
-	post.deleted = true;
-};
-
-PostSchema.methods.undeletePost = async function undeletePost() {
-	const post = this;
-	post.deleted = false;
-};
-
-PostSchema.methods.incrementCommentsCounter = async function incrementCommentsCounter() {
-	const post = this;
-	post.commentsCounter += 1;
-};
-
-PostSchema.methods.decrementCommentsCounter = async function decrementCommentsCounter() {
-	const post = this;
-	post.commentsCounter -= 1;
 };
 
 PostSchema.methods.populateLovers = async function populateLovers() {

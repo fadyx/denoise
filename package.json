@@ -84,5 +84,9 @@
 		"nodemon": "^2.0.12",
 		"prettier": "2.4.0",
 		"supertest": "^6.1.6"
+	},
+	"optionalDependencies": {
+		"bufferutil": "^4.0.3",
+		"utf-8-validate": "^5.0.5"
 	}
 }

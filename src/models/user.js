@@ -14,6 +14,7 @@ import * as ageProperties from "../validations/elements/user/age.js";
 
 import { genders } from "../constants/gender.js";
 import { ages } from "../constants/age.js";
+import { Role, roles } from "../constants/role.js";
 
 const SALTROUNDS = 10;
 
@@ -153,6 +154,16 @@ const userSchema = new Schema(
 			type: mongoose.Types.ObjectId,
 			ref: "User",
 		},
+
+		role: {
+			type: String,
+			required: [true, "Role is required."],
+			enum: {
+				values: roles,
+				message: "Invalid role input.",
+			},
+			default: Role.USER,
+		},
 	},
 	{ timestamps: true, typePojoToMixed: false },
 );
@@ -187,6 +198,28 @@ userSchema.pre("save", async function pre(next) {
 	next();
 });
 
+/*
+userSchema.pre('save', function save(next) {
+  const user = this;
+  if (!user.isModified('password')) { return next(); }
+  bcrypt.genSalt(10, (err, salt) => {
+    if (err) { return next(err); }
+    bcrypt.hash(user.password, salt, (err, hash) => {
+      if (err) { return next(err); }
+      user.password = hash;
+      next();
+    });
+  });
+});
+
+userSchema.methods.comparePassword = function comparePassword(candidatePassword, cb) {
+  bcrypt.compare(candidatePassword, this.password, (err, isMatch) => {
+    cb(err, isMatch);
+  });
+};
+
+*/
+
 userSchema.methods.toJSON = function toJSON() {
 	const user = this;
 	const publicUser = _.pick(user.toObject(), [
@@ -210,6 +243,7 @@ userSchema.methods.generateRefreshToken = async function generateRefreshToken() 
 	const payload = {
 		id: this._id,
 		username: this.username,
+		role: this.role,
 	};
 	const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRETKEY, { expiresIn: process.env.JWT_REFRESH_DURATION });
 	this.token = token;

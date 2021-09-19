@@ -97,9 +97,7 @@ PostSchema.methods.toJSON = function toJSON() {
 	const user = this;
 	const publicPost = _.pick(user.toObject(), [
 		"_id",
-		"deleted",
 		"userId",
-		"lovers",
 		"updatedAt",
 		"__v",
 		"username",

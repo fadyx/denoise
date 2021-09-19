@@ -1,12 +1,12 @@
 const Age = {
 	UNSPECIFIED: "unspecified",
-	AGE15_17: "15-17",
-	AGE18_20: "18-20",
-	AGE21_25: "21-25",
-	AGE26_30: "26-30",
-	AGE31_40: "31-40",
-	AGE41_50: "41-50",
-	AGEPLUS50: "+50",
+	FROM15_TO17: "15-17",
+	FROM18_TO20: "18-20",
+	FROM21_TO25: "21-25",
+	FROM26_TO30: "26-30",
+	FROM31_TO40: "31-40",
+	FROM41_TO50: "41-50",
+	BEYOND_50: "+50",
 };
 
 const ages = Object.values(Age);

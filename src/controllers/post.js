@@ -159,7 +159,7 @@ const newsfeed = catchAsync(async (req, res, next) => {
 	const { lastPostId } = req.query;
 	const { type } = req.params;
 	if (lastPostId && !text.isValidObjectId(lastPostId)) return next(httpError(400, "invalid pagination key."));
-	const match = { deleted: false };
+	const match = {};
 	if (lastPostId) match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
 	const limit = 20;
 	let sort;
@@ -181,28 +181,40 @@ const newsfeed = catchAsync(async (req, res, next) => {
 			return next(httpError(400, "invalid newsfeed type."));
 	}
 
-	// in the last five minutes
-	// createdAt: {
-	// 	$gte: new Date(new Date().getTime()-60*5*1000).toISOString()
-	// }
+	// const postsX = await Post.find({
+	// 	$match: {
+	// 		...match,
+	// 		deleted: false,
+	// 		createdAt: {
+	// 			$gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24),
+	// 		},
+	// 	},
+	// });
 
-	// const posts = await Post.find(match).sort(sort).limit(limit);
 	const posts = await Post.aggregate([
 		{
 			$match: {
 				...match,
+				deleted: false,
 				createdAt: {
 					$gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24),
 				},
 			},
 		},
 		{
-			$addFields: {
+			$set: {
 				isLoved: {
-					$cond: [{ $in: [user._id, "$lovers"] }, true, false],
+					$in: [user._id, "$lovers"],
 				},
 			},
 		},
+		// {
+		// 	$addFields: {
+		// 		isLoved: {
+		// 			$cond: [{ $in: [user._id, "$lovers"] }, true, false],
+		// 		},
+		// 	},
+		// },
 	])
 		.sort(sort)
 		.limit(limit);

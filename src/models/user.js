@@ -326,6 +326,7 @@ userSchema.methods.unfollowUser = function unfollowUser(followee) {
 userSchema.methods.blockUser = function blockUser(otherUser) {
 	const user = this;
 
+	if (user.username === otherUser.username) throw createError(406, "cannot block oneself.");
 	if (user.isBlocking(otherUser)) throw createError(406, "user is already blocked.");
 	if (otherUser.isBlocking(user)) throw createError(404, "user is not found.");
 	if (user.isFollowing(otherUser)) user.unfollowUser(otherUser);
@@ -338,6 +339,7 @@ userSchema.methods.blockUser = function blockUser(otherUser) {
 userSchema.methods.unblockUser = function unblockUser(otherUser) {
 	const user = this;
 
+	if (user.username === otherUser.username) throw createError(406, "cannot unblock oneself.");
 	if (otherUser.isBlocking(user)) throw createError(404, "user is not found.");
 	if (!user.isBlocking(otherUser)) throw createError(406, "user is already unblocked.");
 

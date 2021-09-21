@@ -83,6 +83,22 @@ const PostSchema = new Schema(
 			default: false,
 			index: true,
 		},
+
+		deletedBy: {
+			type: String,
+		},
+
+		reported: {
+			type: Boolean,
+			default: false,
+		},
+
+		reporters: [
+			{
+				type: String,
+				required: true,
+			},
+		],
 	},
 	{ timestamps: true },
 );
@@ -159,7 +175,10 @@ PostSchema.statics.getUserPosts = async function getUserPosts(userId, lastPostId
 		.sort(sort)
 		.limit(limit);
 
-	return userPosts;
+	let lastPage = false;
+	if (userPosts.length < limit) lastPage = true;
+
+	return { posts: userPosts, lastPage };
 };
 
 PostSchema.methods.populateLovers = async function populateLovers() {

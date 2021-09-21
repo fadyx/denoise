@@ -5,132 +5,187 @@ import Post from "../models/post.js";
 import User from "../models/user.js";
 import catchAsync from "../middleware/catchAsyncErrors.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
-
+import { SuccessResponse } from "../utils/apiResponse.js";
 import validation from "../utils/validation.js";
 
-const updateProfile = async (req, res, _next) => {
+const updateProfile = async (req, res) => {
 	const { user } = req;
 	const updates = req.body;
+
 	_.assign(user, updates);
 	await user.save();
-	return res.status(200).json({ user });
+
+	const payload = { user };
+	const response = SuccessResponse("updated user successfully.", payload);
+	return res.status(200).json(response);
 };
 
 const myProfile = catchAsync(async (req, res) => {
 	const { user } = req;
-	return res.status(200).json(user);
+
+	const payload = { user };
+	const response = SuccessResponse("fetched user successfully.", payload);
+	return res.status(200).json(response);
 });
 
-const getUser = catchAsync(async (req, res, next) => {
+const getUser = catchAsync(async (req, res) => {
 	const { user } = req;
 	const { username } = req.params;
-	if (!validation.isValidUsername(username)) return next(httpError(404, "User is not found."));
-	if (user.username === username) return res.status(200).json(user);
+
+	if (!validation.isValidUsername(username)) throw httpError(404, "user is not found.");
+
+	if (user.username === username) {
+		const payload = { user };
+		const response = SuccessResponse("fetched user successfully.", payload);
+		return res.status(200).json(response);
+	}
+
 	const requestedUser = await User.findByUsername(username);
-	if (user.isBlockingOrBlockedBy(requestedUser._id)) return next(httpError(404, "User is not found."));
+	if (user.isBlockingOrBlockedBy(requestedUser._id)) throw httpError(404, "user is not found.");
+
 	const isFollowed = user.followees.includes(requestedUser._id);
-	return res.status(200).json({ ...requestedUser.toJSON(), isFollowed });
+
+	const payload = { user: { ...requestedUser.toJSON(), isFollowed } };
+	const response = SuccessResponse("fetched user successfully.", payload);
+	return res.status(200).json(response);
 });
 
-const follow = catchAsync(async (req, res, next) => {
+const follow = catchAsync(async (req, res) => {
 	const { user } = req;
 	const followeeUsername = req.params.username;
-	if (!validation.isValidUsername(followeeUsername)) return next(httpError(404, "User not found."));
-	if (user.username === followeeUsername) return next(httpError(406, "Cannot follow oneself."));
+
+	if (!validation.isValidUsername(followeeUsername)) throw httpError(404, "user is not found.");
+	if (user.username === followeeUsername) throw httpError(406, "cannot follow oneself.");
+
 	const followee = await User.findByUsername(followeeUsername);
-	if (!followee) throw httpError(404, "User not found.");
+	if (!followee) throw httpError(404, "user is not found.");
+
 	user.followUser(followee);
 	const uow = async (session) => {
 		await user.save({ session });
 		await followee.save({ session });
 	};
 	await RunUnitOfWork(uow);
-	return res.status(200).json();
+
+	const response = SuccessResponse("followed user successfully.");
+	return res.status(200).json(response);
 });
 
-const unfollow = catchAsync(async (req, res, next) => {
+const unfollow = catchAsync(async (req, res) => {
 	const { user } = req;
 	const followeeUsername = req.params.username;
-	if (!validation.isValidUsername(followeeUsername)) return next(httpError(404, "User not found."));
-	if (user.username === followeeUsername) return next(httpError(406, "Cannot follow oneself."));
+
+	if (!validation.isValidUsername(followeeUsername)) throw httpError(404, "user is not found.");
+	if (user.username === followeeUsername) throw httpError(406, "cannot follow oneself.");
+
 	const followee = await User.findByUsername(followeeUsername);
-	if (!followee) throw httpError(404, "User not found.");
+	if (!followee) throw httpError(404, "user is not found.");
+
 	user.unfollowUser(followee);
 	const uow = async (session) => {
 		await user.save({ session });
 		await followee.save({ session });
 	};
 	await RunUnitOfWork(uow);
-	return res.status(200).json();
+
+	const response = SuccessResponse("unfollowed user successfully.");
+	return res.status(200).json(response);
 });
 
-const block = catchAsync(async (req, res, next) => {
+const block = catchAsync(async (req, res) => {
 	const { user } = req;
 	const blockedUsername = req.params.username;
-	if (!validation.isValidUsername(blockedUsername)) return next(httpError(404, "User not found."));
-	if (user.username === blockedUsername) return next(httpError(406, "Cannot block oneself."));
+
+	if (!validation.isValidUsername(blockedUsername)) throw httpError(404, "user is not found.");
 	const blockedUser = await User.findByUsername(blockedUsername);
-	if (!blockedUser) throw httpError(404, "User not found.");
+	if (!blockedUser) throw httpError(404, "user is not found.");
+
 	user.blockUser(blockedUser);
 	const uow = async (session) => {
 		await user.save({ session });
 		await blockedUser.save({ session });
 	};
 	await RunUnitOfWork(uow);
-	return res.status(200).json();
+
+	const response = SuccessResponse("blocked user successfully.");
+	return res.status(200).json(response);
 });
 
-const unblock = catchAsync(async (req, res, next) => {
+const unblock = catchAsync(async (req, res) => {
 	const { user } = req;
 	const blockedUsername = req.params.username;
-	if (!validation.isValidUsername(blockedUsername)) return next(httpError(404, "User not found."));
-	if (user.username === blockedUsername) return next(httpError(406, "Cannot unblock oneself."));
+
+	if (!validation.isValidUsername(blockedUsername)) throw httpError(404, "User not found.");
+
 	const blockedUser = await User.findByUsername(blockedUsername);
-	if (!blockedUser) throw httpError(404, "User not found.");
+	if (!blockedUser) throw httpError(404, "user is not found.");
+
 	user.unblockUser(blockedUser);
 	const uow = async (session) => {
 		await user.save({ session });
 		await blockedUser.save({ session });
 	};
 	await RunUnitOfWork(uow);
-	return res.status(200).json();
+
+	const response = SuccessResponse("unblocked user successfully.");
+	return res.status(200).json(response);
 });
 
 const myPosts = catchAsync(async (req, res) => {
 	const { user } = req;
 	const { lastPostId } = req.query;
-	if (lastPostId && !validation.isValidObjectId(lastPostId)) throw httpError(400, "Invalid pagination key.");
-	const posts = await Post.getUserPosts(user.id, lastPostId);
-	return res.status(200).json(posts);
+
+	if (lastPostId && !validation.isValidObjectId(lastPostId)) throw httpError(400, "invalid pagination key.");
+	const results = await Post.getUserPosts(user.id, lastPostId);
+	const { posts, lastPage } = results;
+
+	const nextLastPostId = posts[posts.length - 1]._id;
+
+	const payload = { count: posts.length, nextLastPostId, posts, lastPage };
+	const response = SuccessResponse("fetched posts successfully.", payload);
+	return res.status(200).json(response);
 });
 
 const userPosts = catchAsync(async (req, res) => {
 	const { user } = req;
 	const { username } = req.params;
 	const { lastPostId } = req.query;
+
 	if (!validation.isValidUsername(username)) throw httpError(404, "User not found.");
 	if (lastPostId && !validation.isValidObjectId(lastPostId)) throw httpError(400, "invalid pagination key.");
 	const requestedUser = await User.findByUsername(username);
 	if (!requestedUser || user.isBlockingOrBlockedBy(requestedUser._id)) throw httpError(404, "User was not found.");
-	const posts = await Post.getUserPosts(requestedUser.id, lastPostId);
-	return res.status(200).json(posts);
+
+	const results = await Post.getUserPosts(requestedUser.id, lastPostId);
+	const { posts, lastPage } = results;
+
+	const nextLastPostId = posts[posts.length - 1]._id;
+
+	const payload = { count: posts.length, nextLastPostId, posts, lastPage };
+	const response = SuccessResponse("fetched posts successfully.", payload);
+	return res.status(200).json(response);
 });
 
 const clear = catchAsync(async (req, res) => {
 	const { user } = req;
-	const uow = async (session) => {
-		await Post.updateMany({ userId: user.id, deleted: false }, { deleted: true }, { session });
-		await session.commitTransaction();
-		session.endSession();
-	};
-	await RunUnitOfWork(uow);
-	return res.status(200).json();
+
+	await Post.updateMany(
+		{ userId: user._id, deleted: false, deletedBy: user.username },
+		{ deleted: true, deletedBy: user.username },
+	);
+
+	const response = SuccessResponse("cleared posts successfully.");
+	return res.status(200).json(response);
 });
 
 const blocked = catchAsync(async (req, res) => {
 	const { user } = req;
+
 	await user.populateBlocked();
-	return res.status(200).json(user.blocked);
+
+	const payload = { blocked: user.blocked };
+	const response = SuccessResponse("fetched blocked users successfully.", payload);
+	return res.status(200).json(response);
 });
 
 export default {

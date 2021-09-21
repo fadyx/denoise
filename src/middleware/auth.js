@@ -21,6 +21,7 @@ const validateRefreshToken = catchAsync(async (req, res, next) => {
 	const decodedRefreshToken = jwt.verify(token, process.env.JWT_REFRESH_SECRET_KEY);
 	const user = await User.findActiveUserById(decodedRefreshToken.id);
 	req.user = user;
+	req.refreshToken = token;
 	req.decodedRefreshToken = decodedRefreshToken;
 	return next();
 });

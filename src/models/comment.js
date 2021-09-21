@@ -39,6 +39,17 @@ const commentSchema = new Schema(
 		deletedBy: {
 			type: String,
 		},
+		reported: {
+			type: Boolean,
+			default: false,
+		},
+
+		reporters: [
+			{
+				type: String,
+				required: true,
+			},
+		],
 	},
 	{ timestamps: true },
 );

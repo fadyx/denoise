@@ -8,8 +8,8 @@ import routers from "./routes/index.js";
 import notFoundController from "./controllers/notFound.js";
 import healthController from "./controllers/health.js";
 
-import accessLogger from "./lib/accessLogger.js";
-import errorHandler from "./middleware/errorHandler.js";
+import { successLogger, failureLogger } from "./lib/accessLogger.js";
+import error from "./middleware/error.js";
 
 const app = express();
 
@@ -20,7 +20,8 @@ app.set("strict routing", true);
 
 app.use(cors());
 app.use(helmet());
-app.use(accessLogger);
+app.use(successLogger);
+app.use(failureLogger);
 app.use(express.urlencoded({ extended: false }));
 
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
@@ -42,6 +43,7 @@ app.use(
 app.use("/api", routers);
 app.get("/api/health", healthController);
 app.all("*", notFoundController);
-app.use(errorHandler);
+app.use(error.converter);
+app.use(error.handler);
 
 export default app;

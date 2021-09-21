@@ -1,3 +1,5 @@
+import catchAsyncErrors from "./catchAsyncErrors.js";
+
 const options = {
 	abortEarly: false,
 	allowUnknown: false,
@@ -8,13 +10,10 @@ const options = {
 	},
 };
 
-const validate = (schema) => async (req, res, next) => {
-	try {
+const validate = (schema) =>
+	catchAsyncErrors(async (req, res, next) => {
 		await schema.validateAsync(req.body, options);
 		return next();
-	} catch (error) {
-		return next(error);
-	}
-};
+	});
 
 export default validate;

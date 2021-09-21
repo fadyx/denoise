@@ -5,7 +5,7 @@ import _ from "lodash";
 import createError from "http-errors";
 
 import uniqueErrorPlugin from "../lib/uniqueErrorPlugin.js";
-import text from "../utils/text.js";
+import validation from "../utils/validation.js";
 
 import * as bioProperties from "../validations/elements/user/bio.js";
 import * as countryProperties from "../validations/elements/user/country.js";
@@ -29,7 +29,7 @@ const userSchema = new Schema(
 			index: true,
 			validate: {
 				validator(value) {
-					return text.isValidUsername(value);
+					return validation.isValidUsername(value);
 				},
 				message: "Invalid username format.",
 			},
@@ -245,7 +245,7 @@ userSchema.methods.generateRefreshToken = async function generateRefreshToken() 
 		username: this.username,
 		role: this.role,
 	};
-	const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRETKEY, { expiresIn: process.env.JWT_REFRESH_DURATION });
+	const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET_KEY, { expiresIn: process.env.JWT_REFRESH_DURATION });
 	this.token = token;
 	return token;
 };
@@ -255,7 +255,7 @@ userSchema.methods.generateAccessToken = function generateAccessToken() {
 		id: this._id,
 		username: this.username,
 	};
-	const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRETKEY, { expiresIn: process.env.JWT_ACCESS_DURATION });
+	const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY, { expiresIn: process.env.JWT_ACCESS_DURATION });
 	return token;
 };
 

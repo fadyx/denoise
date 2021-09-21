@@ -1,9 +1,9 @@
 import httpError from "http-errors";
 
-import catchAsync from "./catchAsyncErrors.js";
+import catchAsyncErrors from "./catchAsyncErrors.js";
 
 const verifyRoles = (...roles) =>
-	catchAsync(async (req, res, next) => {
+	catchAsyncErrors(async (req, res, next) => {
 		const { user } = req;
 		if (!roles.includes(user.role)) throw httpError(403, "Unauthorized.");
 		next();

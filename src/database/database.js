@@ -6,7 +6,7 @@ import "../models/index.js";
 
 const logger = new Logger("database");
 
-if (process.env.DEBUG_DB === "true") {
+if (process.env.MONGO_DB_DEBUG === "true") {
 	mongoose.set("debug", true);
 }
 
@@ -42,7 +42,7 @@ mongoose.connection.on("close", () => {
 
 const connect = async () => {
 	try {
-		await mongoose.connect(process.env.DBURI);
+		await mongoose.connect(process.env.MONGO_DB_URI);
 	} catch (error) {
 		logger.debug("Could not connect to database.");
 		logger.log(error);

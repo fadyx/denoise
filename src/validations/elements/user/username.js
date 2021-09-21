@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import text from "../../../utils/text.js";
+import validation from "../../../utils/validation.js";
 
 const MIN_LENGTH = 5;
 const MAX_LENGTH = 15;
@@ -10,7 +10,7 @@ const username = Joi.string()
 	.min(MIN_LENGTH)
 	.max(MAX_LENGTH)
 	.custom((value, helper) => {
-		if (!text.isValidUsername(value)) return helper.message("invalid username format.");
+		if (!validation.isValidUsername(value)) return helper.message("invalid username format.");
 		return true;
 	})
 	.label(LABEL)

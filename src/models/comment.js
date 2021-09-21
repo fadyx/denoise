@@ -36,6 +36,9 @@ const commentSchema = new Schema(
 			default: false,
 			index: true,
 		},
+		deletedBy: {
+			type: String,
+		},
 	},
 	{ timestamps: true },
 );

@@ -4,35 +4,27 @@ import fs from "fs";
 
 import morgan from "morgan";
 
-// To rotate log files
-// const rfs = require("rotating-file-stream");
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const logDirectory = path.join(__dirname, "../../logs/access");
 if (!fs.existsSync(logDirectory)) fs.mkdirSync(logDirectory, { recursive: true });
 
-// const rfsOptions = {
-//    size: "10M",
-//    interval: "1d",
-//    immutable: true,
-//    path: logDirectory,
-// };
+const successLogPath = path.join(__dirname, "../../logs/access/success.log");
+const failureLogPath = path.join(__dirname, "../../logs/access/failure.log");
 
-// const accessLogStream = rfs.createStream("access.log", rfsOptions);
+const successLogStream = fs.createWriteStream(successLogPath, { flags: "a" });
+const failureLogStream = fs.createWriteStream(failureLogPath, { flags: "a" });
 
-const accessLogPath = path.join(__dirname, "../../logs/access/access.log");
+morgan.token("message", (req, res) => res.locals.errorMessage || "");
 
-const accessLogStream = fs.createWriteStream(accessLogPath, { flags: "a" });
-
-const loggerFormat =
+const basicFormat =
 	"[:date[clf]] length::res[content-length] HTTP/:http-version :method :url status::status response-time::response-time ms - :remote-user :remote-addr - :user-agent";
 
-const loggerOptions = {
-	stream: accessLogStream,
-};
+const failureFormat = `${basicFormat} - message::message`;
+const successFormat = basicFormat;
 
-const accessLogger = morgan(loggerFormat, loggerOptions);
+const successLogger = morgan(successFormat, { stream: successLogStream, skip: (req, res) => res.statusCode >= 400 });
+const failureLogger = morgan(failureFormat, { stream: failureLogStream, skip: (req, res) => res.statusCode < 400 });
 
-export default accessLogger;
+export { successLogger, failureLogger };

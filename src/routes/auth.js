@@ -7,10 +7,10 @@ import { authSchemas } from "../validations/index.js";
 const router = express.Router({ caseSensitive: true, strict: true });
 
 router.post("/register", validate(authSchemas.register), controller.register);
-router.post("/signin", validate(authSchemas.login), controller.signin);
+router.post("/login", validate(authSchemas.login), controller.login);
 router.post("/refresh", controller.refresh);
-router.patch("/resetpassword", validate(authSchemas.resetPassword), controller.resetPassword);
-router.delete("/signout", controller.signout);
+router.patch("/reset-password", validate(authSchemas.resetPassword), controller.resetPassword);
+router.delete("/logout", controller.logout);
 router.delete("/terminate", validate(authSchemas.terminate), controller.terminate);
 
 export default router;

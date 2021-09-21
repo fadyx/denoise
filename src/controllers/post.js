@@ -6,7 +6,7 @@ import Comment from "../models/comment.js";
 
 import catchAsync from "../middleware/catchAsyncErrors.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
-import text from "../utils/text.js";
+import validation from "../utils/validation.js";
 
 const createPost = catchAsync(async (req, res) => {
 	const { user } = req;
@@ -26,7 +26,7 @@ const createPost = catchAsync(async (req, res) => {
 const getPost = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) return next(httpError(404, "Post was not found."));
+	if (!validation.isValidObjectId(postId)) return next(httpError(404, "Post was not found."));
 	const post = await Post.findById(postId);
 	if (!post || user.isBlockingOrBlockedBy(post.userId)) return next(httpError(404, "Post was not found."));
 	const isLoved = post.lovers.includes(user._id);
@@ -37,7 +37,7 @@ const createComment = catchAsync(async (req, res) => {
 	const { user } = req;
 	const { postId } = req.params;
 	const commentDto = req.body;
-	if (!text.isValidObjectId(postId)) throw httpError(404, "Post was not found.");
+	if (!validation.isValidObjectId(postId)) throw httpError(404, "Post was not found.");
 	const uow = async (session) => {
 		const post = await Post.findById(postId).session(session);
 		if (!post || user.isBlockingOrBlockedBy(post.userId)) throw httpError(404, "Post was not found.");
@@ -61,7 +61,7 @@ const createComment = catchAsync(async (req, res) => {
 const deletePost = catchAsync(async (req, res) => {
 	const { user } = req;
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) throw httpError(404, "post was not found.");
+	if (!validation.isValidObjectId(postId)) throw httpError(404, "post was not found.");
 	const post = await Post.findById(postId);
 	if (!post || post.deleted || !(await user.isBlockingOrBlockedBy(post.userId)))
 		throw httpError(404, "post was not found.");
@@ -75,7 +75,7 @@ const deleteComment = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { postId } = req.params;
 	const { commentId } = req.params;
-	if (!text.isValidObjectId(postId) || !text.isValidObjectId(commentId))
+	if (!validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
 		throw httpError(404, "comment was not found.");
 	const post = await Post.findById(postId);
 	if (!post || post.deleted || !(await user.isBlockingOrBlockedBy(post.userId)))
@@ -95,7 +95,7 @@ const deleteComment = catchAsync(async (req, res, next) => {
 
 const lovePost = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
+	if (!validation.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
 	const post = await Post.findById(postId);
 
 	if (!post || post.deleted || !req.user.isBlockingOrBlockedBy(post.userId))
@@ -109,7 +109,7 @@ const lovePost = catchAsync(async (req, res, next) => {
 
 const unlovePost = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
+	if (!validation.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
 	const post = await Post.findById(postId);
 	if (!post || post.deleted || !req.user.isBlockingOrBlockedBy(post.userId))
 		throw httpError(404, "post was not found.");
@@ -121,7 +121,7 @@ const unlovePost = catchAsync(async (req, res, next) => {
 
 const getPostLovers = catchAsync(async (req, res, next) => {
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
+	if (!validation.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
 	const post = await Post.findById(postId);
 	if (!post || post.deleted || !req.user.isBlockingOrBlockedBy(post.userId))
 		return next(httpError(404, "post was not found."));
@@ -135,8 +135,9 @@ const getPostComments = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { lastCommentId } = req.query;
 	const { postId } = req.params;
-	if (!text.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
-	if (lastCommentId && !text.isValidObjectId(lastCommentId)) return next(httpError(404, "invalid pagination key."));
+	if (!validation.isValidObjectId(postId)) return next(httpError(404, "post was not found."));
+	if (lastCommentId && !validation.isValidObjectId(lastCommentId))
+		return next(httpError(404, "invalid pagination key."));
 	const post = await Post.findById(postId);
 	if (!post || post.deleted || !(await req.user.isBlockingOrBlockedBy(post.userId)))
 		return next(httpError(404, "post was not found."));
@@ -158,7 +159,7 @@ const newsfeed = catchAsync(async (req, res, next) => {
 	const { user } = req;
 	const { lastPostId } = req.query;
 	const { type } = req.params;
-	if (lastPostId && !text.isValidObjectId(lastPostId)) return next(httpError(400, "invalid pagination key."));
+	if (lastPostId && !validation.isValidObjectId(lastPostId)) return next(httpError(400, "invalid pagination key."));
 	const match = {};
 	if (lastPostId) match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
 	const limit = 20;

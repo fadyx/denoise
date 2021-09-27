@@ -1,5 +1,4 @@
 const Age = {
-	UNSPECIFIED: "unspecified",
 	FROM15_TO17: "15-17",
 	FROM18_TO20: "18-20",
 	FROM21_TO25: "21-25",

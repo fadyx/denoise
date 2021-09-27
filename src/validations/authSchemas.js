@@ -5,12 +5,13 @@ import { UserElements } from "./elements/index.js";
 const register = Joi.object({
 	username: UserElements.username.required(),
 	password: UserElements.password.required(),
-	displayname: UserElements.displayname.optional(),
-	bio: UserElements.bio.optional(),
-	origin: UserElements.origin.optional(),
-	country: UserElements.country.optional(),
-	gender: UserElements.gender.optional(),
-	age: UserElements.age.optional(),
+	profile: {
+		displayname: UserElements.displayname.optional(),
+		bio: UserElements.bio.optional(),
+		origin: UserElements.origin.optional(),
+		gender: UserElements.gender.optional(),
+		age: UserElements.age.optional(),
+	},
 });
 
 const login = Joi.object({

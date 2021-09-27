@@ -7,10 +7,9 @@ const update = Joi.object({
 	bio: UserElements.bio.optional(),
 	origin: UserElements.origin.optional(),
 	gender: UserElements.gender.optional(),
-	country: UserElements.country.optional(),
 	age: UserElements.age.optional(),
 })
-	.or("displayNme", "bio", "origin", "gender", "age", "country")
+	.or("displayNme", "bio", "origin", "gender", "age")
 	.messages({
 		"object.missing": "update request can not be empty.",
 	});

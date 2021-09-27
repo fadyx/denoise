@@ -1,23 +1,18 @@
 import mongoose from "mongoose";
-import twitter from "twitter-text";
-
 import _ from "lodash";
 
-import { flags } from "../constants/flag.js";
+import text from "../utils/text.js";
+
+import { flags } from "../constants/Flag.js";
 
 const { Schema } = mongoose;
 
 const PostSchema = new Schema(
 	{
-		userId: {
-			type: Schema.Types.ObjectId,
-			ref: "User",
-			required: [true, "user id is required."],
-			index: true,
-		},
-
 		username: {
 			type: String,
+			ref: "User",
+			foreignField: "username",
 			required: [true, "username is required."],
 		},
 
@@ -31,24 +26,27 @@ const PostSchema = new Schema(
 			required: [true, "text is required."],
 		},
 
-		lovers: [
+		likes: [
 			{
-				type: mongoose.Types.ObjectId,
-				required: [true, "user id is required."],
+				type: String,
+				required: [true, "username is required."],
 				ref: "User",
+				foreignField: "username",
 			},
 		],
 
-		loversCounter: {
-			type: Number,
-			default: 0,
-			index: true,
-		},
+		stats: {
+			likes: {
+				type: Number,
+				default: 0,
+				index: true,
+			},
 
-		commentsCounter: {
-			type: Number,
-			default: 0,
-			index: true,
+			comments: {
+				type: Number,
+				default: 0,
+				index: true,
+			},
 		},
 
 		hashtags: [
@@ -86,16 +84,22 @@ const PostSchema = new Schema(
 
 		deletedBy: {
 			type: String,
+			ref: "User",
+			foreignField: "username",
+			index: true,
 		},
 
 		reported: {
 			type: Boolean,
 			default: false,
+			index: true,
 		},
 
 		reporters: [
 			{
 				type: String,
+				ref: "User",
+				foreignField: "username",
 				required: true,
 			},
 		],
@@ -103,61 +107,42 @@ const PostSchema = new Schema(
 	{ timestamps: true },
 );
 
-PostSchema.virtual("loversPreviews", {
-	ref: "User",
-	localField: "lovers",
-	foreignField: "_id",
-});
-
 PostSchema.methods.toJSON = function toJSON() {
 	const user = this;
 	const publicPost = _.pick(user.toObject(), [
 		"_id",
-		"userId",
-		"updatedAt",
-		"__v",
 		"username",
-		"displaymame",
-		"flags",
-		"allowComments",
-		"hashtags",
-		"loversCounter",
-		"commentsCounter",
+		"displayname",
 		"text",
+		"stats",
+		"hashtags",
+		"allowComments",
+		"flags",
 		"createdAt",
 	]);
 
 	return publicPost;
 };
 
-PostSchema.set("toObject", { virtuals: true, getters: true });
-PostSchema.set("toJSON", { virtuals: true, getters: true });
-
 PostSchema.pre("save", async function pre(next) {
 	const post = this;
 
 	if (post.isNew) {
-		const extractedHashtags = twitter.extractHashtags(post.text);
+		const extractedHashtags = text.extractHashtags(post.text);
 		post.hashtags = _.uniq(extractedHashtags);
 	}
 
-	if (post.isModified("lovers")) {
-		post.loversCounter = post.lovers.length;
+	if (post.isModified("likes")) {
+		post.stats.likes = post.likes.length;
 	}
 
 	next();
 });
 
-PostSchema.pre(/^find/, async function pre(next) {
-	this.find({ deleted: false });
-	this.populate({ path: "loversPreviews", select: "username displayname" });
-	next();
-});
-
-PostSchema.statics.getUserPosts = async function getUserPosts(userId, lastPostId) {
+PostSchema.statics.getUserPosts = async function getUserPosts(username, lastPostId) {
 	const limit = 20;
 	const sort = { _id: -1 };
-	const match = { deleted: false, userId };
+	const match = { deleted: false, username };
 	if (lastPostId) match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
 
 	const userPosts = await this.aggregate([
@@ -166,8 +151,8 @@ PostSchema.statics.getUserPosts = async function getUserPosts(userId, lastPostId
 		},
 		{
 			$addFields: {
-				isLoved: {
-					$cond: [{ $in: [userId, "$lovers"] }, true, false],
+				isLiked: {
+					$cond: [{ $in: [username, "$likes"] }, true, false],
 				},
 			},
 		},
@@ -175,28 +160,12 @@ PostSchema.statics.getUserPosts = async function getUserPosts(userId, lastPostId
 		.sort(sort)
 		.limit(limit);
 
-	let lastPage = false;
-	if (userPosts.length < limit) lastPage = true;
+	let hasNextPage = false;
+	if (userPosts.length < limit) hasNextPage = true;
 
-	return { posts: userPosts, lastPage };
-};
-
-PostSchema.methods.populateLovers = async function populateLovers() {
-	const post = this;
-
-	await post
-		.populate({
-			path: "loversPreviews",
-			select: "username displayname _id",
-		})
-		.execPopulate();
+	return { posts: userPosts, hasNextPage };
 };
 
 const Post = mongoose.model("Post", PostSchema);
 
 export default Post;
-
-// in the last five minutes
-// createdAt: {
-// 	$gte: new Date(new Date().getTime()-60*5*1000).toISOString()
-// }

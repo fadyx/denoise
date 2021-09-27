@@ -7,16 +7,11 @@ import createError from "http-errors";
 import uniqueErrorPlugin from "../lib/uniqueErrorPlugin.js";
 import validation from "../utils/validation.js";
 
-import * as bioProperties from "../validations/elements/user/bio.js";
-import * as countryProperties from "../validations/elements/user/country.js";
-import * as genderProperties from "../validations/elements/user/gender.js";
-import * as ageProperties from "../validations/elements/user/age.js";
+import { genders } from "../constants/Gender.js";
+import { ages } from "../constants/Age.js";
+import { Role, roles } from "../constants/Role.js";
 
-import { genders } from "../constants/gender.js";
-import { ages } from "../constants/age.js";
-import { Role, roles } from "../constants/role.js";
-
-const SALTROUNDS = 10;
+const SALT_ROUNDS = 10;
 
 const { Schema } = mongoose;
 
@@ -24,119 +19,119 @@ const userSchema = new Schema(
 	{
 		username: {
 			type: String,
-			required: [true, "Username is required."],
-			unique: [true, "Username is unavailable."],
+			required: [true, "username is required."],
+			unique: [true, "username is unavailable."],
 			index: true,
 			validate: {
 				validator(value) {
 					return validation.isValidUsername(value);
 				},
-				message: "Invalid username format.",
+				message: "invalid username format.",
 			},
-		},
-
-		password: {
-			type: String,
-			required: [true, "Password is required."],
-		},
-
-		displayname: {
-			type: String,
-			trim: true,
-			required: [true, "Display name is required."],
-		},
-
-		bio: {
-			type: String,
-			trim: true,
-			default: bioProperties.DEFAULT,
-		},
-
-		country: {
-			type: String,
-			required: [true, "Country is required."],
-			default: countryProperties.DEFAULT,
-			trim: true,
-		},
-
-		gender: {
-			type: String,
-			required: [true, "Gender is required."],
-			enum: {
-				values: genders,
-				message: "Invalid gender input.",
-			},
-			default: genderProperties.DEFAULT,
-		},
-
-		age: {
-			type: String,
-			required: [true, "Age is required."],
-			enum: {
-				values: ages,
-				message: "Invalid age input.",
-			},
-			default: ageProperties.DEFAULT,
-		},
-
-		followees: [
-			{
-				type: mongoose.Types.ObjectId,
-				required: [true, "User ID is required."],
-				ref: "User",
-			},
-		],
-
-		followers: [
-			{
-				type: mongoose.Types.ObjectId,
-				required: [true, "User ID is required."],
-				ref: "User",
-			},
-		],
-
-		blocked: [
-			{
-				type: mongoose.Types.ObjectId,
-				required: [true, "User ID is required."],
-				ref: "User",
-			},
-		],
-
-		blocking: [
-			{
-				type: mongoose.Types.ObjectId,
-				required: [true, "User ID is required."],
-				ref: "User",
-			},
-		],
-
-		followersCounter: {
-			type: Number,
-			default: 0,
-		},
-
-		postsCounter: {
-			type: Number,
-			default: 0,
-		},
-
-		karmaCounter: {
-			type: Number,
-			default: 1,
 		},
 
 		token: {
 			type: String,
 		},
 
-		deleted: {
+		password: {
+			type: String,
+			required: [true, "password is required."],
+		},
+
+		profile: {
+			displayname: {
+				type: String,
+				trim: true,
+				required: true,
+			},
+
+			bio: {
+				type: String,
+				trim: true,
+			},
+
+			gender: {
+				type: String,
+				enum: {
+					values: genders,
+					message: "invalid gender input.",
+				},
+			},
+
+			age: {
+				type: String,
+				enum: {
+					values: ages,
+					message: "invalid age input.",
+				},
+			},
+
+			origin: {
+				type: String,
+			},
+
+			stats: {
+				stars: {
+					type: Number,
+					default: 0,
+				},
+
+				posts: {
+					type: Number,
+					default: 0,
+				},
+
+				karma: {
+					type: Number,
+					default: 1,
+				},
+			},
+		},
+
+		followees: [
+			{
+				type: String,
+				required: [true, "username is required."],
+				ref: "User",
+				foreignField: "username",
+			},
+		],
+
+		followers: [
+			{
+				type: String,
+				required: [true, "username is required."],
+				ref: "User",
+				foreignField: "username",
+			},
+		],
+
+		blocked: [
+			{
+				type: String,
+				required: [true, "username is required."],
+				ref: "User",
+				foreignField: "username",
+			},
+		],
+
+		blocking: [
+			{
+				type: String,
+				required: [true, "username is required."],
+				ref: "User",
+				foreignField: "username",
+			},
+		],
+
+		inactive: {
 			type: Boolean,
 			required: true,
 			default: false,
 		},
 
-		deletedAt: {
+		inactivatedAt: {
 			type: Date,
 		},
 
@@ -151,33 +146,25 @@ const userSchema = new Schema(
 		},
 
 		bannedBy: {
-			type: mongoose.Types.ObjectId,
+			type: String,
 			ref: "User",
+			foreignField: "username",
 		},
 
 		role: {
 			type: String,
-			required: [true, "Role is required."],
+			required: [true, "role is required."],
 			enum: {
 				values: roles,
-				message: "Invalid role input.",
+				message: "invalid role input.",
 			},
 			default: Role.USER,
 		},
 	},
-	{ timestamps: true, typePojoToMixed: false },
+	{ timestamps: { createdAt: "profile.createdAt" } },
 );
 
 userSchema.plugin(uniqueErrorPlugin);
-
-userSchema.virtual("posts", {
-	ref: "Post",
-	localField: "_id",
-	foreignField: "userId",
-});
-
-userSchema.set("toObject", { virtuals: true, getters: true });
-userSchema.set("toJSON", { virtuals: true, getters: true });
 
 userSchema.pre("validate", async function pre(next) {
 	const user = this;
@@ -190,58 +177,22 @@ userSchema.pre("validate", async function pre(next) {
 userSchema.pre("save", async function pre(next) {
 	const user = this;
 	if (user.isModified("password")) {
-		user.password = await bcrypt.hash(user.password, SALTROUNDS);
+		user.password = await bcrypt.hash(user.password, SALT_ROUNDS);
 	}
 	if (user.isModified("followers")) {
-		user.followersCounter = user.followers.length;
+		user.profile.stats.stars = user.followers.length;
 	}
 	next();
 });
 
-/*
-userSchema.pre('save', function save(next) {
-  const user = this;
-  if (!user.isModified('password')) { return next(); }
-  bcrypt.genSalt(10, (err, salt) => {
-    if (err) { return next(err); }
-    bcrypt.hash(user.password, salt, (err, hash) => {
-      if (err) { return next(err); }
-      user.password = hash;
-      next();
-    });
-  });
-});
-
-userSchema.methods.comparePassword = function comparePassword(candidatePassword, cb) {
-  bcrypt.compare(candidatePassword, this.password, (err, isMatch) => {
-    cb(err, isMatch);
-  });
-};
-
-*/
-
 userSchema.methods.toJSON = function toJSON() {
 	const user = this;
-	const publicUser = _.pick(user.toObject(), [
-		"_id",
-		"username",
-		"displayname",
-		"bio",
-		"country",
-		"gender",
-		"age",
-		"followersCounter",
-		"postsCounter",
-		"karmaCounter",
-		"createdAt",
-	]);
-
+	const publicUser = _.pick(user.toObject(), ["username", "profile"]);
 	return publicUser;
 };
 
-userSchema.methods.generateRefreshToken = async function generateRefreshToken() {
+userSchema.methods.generateRefreshToken = function generateRefreshToken() {
 	const payload = {
-		id: this._id,
 		username: this.username,
 		role: this.role,
 	};
@@ -252,127 +203,100 @@ userSchema.methods.generateRefreshToken = async function generateRefreshToken() 
 
 userSchema.methods.generateAccessToken = function generateAccessToken() {
 	const payload = {
-		id: this._id,
 		username: this.username,
+		role: this.role,
 	};
 	const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY, { expiresIn: process.env.JWT_ACCESS_DURATION });
 	return token;
 };
 
-userSchema.statics.findByCredentials = async function findByCredentials(username, password) {
-	const user = await this.findByUsername(username);
-	const isValidPassword = await user.checkPassword(password);
-	if (!isValidPassword) throw createError("Invalid credentials.");
-	return user;
-};
-
-userSchema.statics.findActiveUserById = async function findActiveUserById(id) {
-	const user = await this.findById(id);
-	if (!user || user.deleted || user.banned) throw createError("User is not found.");
-	return user;
-};
-
 userSchema.statics.findByUsername = async function findByUsername(username) {
 	const user = await this.findOne({ username });
-	if (!user || user.deleted || user.banned) throw createError("User is not found.");
 	return user;
 };
 
 userSchema.methods.checkPassword = async function checkPassword(password) {
 	const user = this;
-	const isPasswordValid = await bcrypt.compare(password, user.password);
-	return isPasswordValid;
+	const match = await bcrypt.compare(password, user.password);
+	return match;
 };
 
-userSchema.methods.isBlocking = function isBlocking(otherUser) {
-	const user = this;
-	if (user.blocked.includes(otherUser._id)) return true;
-	return false;
+userSchema.statics.findByCredentials = async function findByCredentials(username, password) {
+	const user = await this.findActiveUserByUsername(username);
+	const isCorrectPassword = await user.checkPassword(password);
+	if (!isCorrectPassword) throw createError("invalid credentials.");
+	return user;
 };
 
-userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(otherUserId) {
-	const user = this;
-	if (user.id === otherUserId) return false;
-	if (user.blocked.includes(otherUserId) || user.blocking.includes(otherUserId)) return true;
-	return false;
+userSchema.statics.findActiveUserByUsername = async function findActiveUserByUsername(username) {
+	const user = await this.findOne({ username });
+	if (!user || user.inactive || user.banned) throw createError("user is not found.");
+	return user;
 };
 
-userSchema.methods.isFollowing = function isFollowing(otherUser) {
+userSchema.methods.isBlocking = function isBlocking(username) {
 	const user = this;
-	if (user.followees.includes(otherUser.id)) return true;
-	return false;
+	return user.blocked.includes(username);
+};
+
+userSchema.methods.isBlockedBy = function isBlockedBy(username) {
+	const user = this;
+	return user.blocking.includes(username);
+};
+
+userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(username) {
+	const user = this;
+	if (user.username === username) return false;
+	return user.isBlockedBy(username) || user.isBlocking(username);
+};
+
+userSchema.methods.isFollowing = function isFollowing(username) {
+	const user = this;
+	return user.followees.includes(username);
 };
 
 userSchema.methods.followUser = function followUser(followee) {
 	const user = this;
 
-	if (user.isBlockingOrBlockedBy(followee)) throw createError(404, "user is not found.");
-	if (user.isFollowing(followee)) throw createError(406, "user is already followed.");
+	if (user.isBlockingOrBlockedBy(followee.username)) throw createError(404, "user is not found.");
+	if (user.isFollowing(followee.username)) throw createError(406, "user is already followed.");
 
-	user.followees.addToSet(followee._id);
-	followee.followers.addToSet(user._id);
+	user.followees.addToSet(followee.username);
+	followee.followers.addToSet(user.username);
 };
 
 userSchema.methods.unfollowUser = function unfollowUser(followee) {
 	const user = this;
 
-	if (user.isBlockingOrBlockedBy(followee)) throw createError(404, "user is not found.");
-	if (!user.isFollowing(followee)) throw createError(406, "user is already unfollowed.");
+	if (user.isBlockingOrBlockedBy(followee.username)) throw createError(404, "user is not found.");
+	if (!user.isFollowing(followee.username)) throw createError(406, "user is already unfollowed.");
 
-	user.followees.remove(followee._id);
-	followee.followers.remove(user._id);
+	user.followees.remove(followee.username);
+	followee.followers.remove(user.username);
 };
 
-userSchema.methods.blockUser = function blockUser(otherUser) {
+userSchema.methods.blockUser = function blockUser(other) {
 	const user = this;
 
-	if (user.username === otherUser.username) throw createError(406, "cannot block oneself.");
-	if (user.isBlocking(otherUser)) throw createError(406, "user is already blocked.");
-	if (otherUser.isBlocking(user)) throw createError(404, "user is not found.");
-	if (user.isFollowing(otherUser)) user.unfollowUser(otherUser);
-	if (otherUser.isFollowing(user)) otherUser.unfollowUser(user);
+	if (user.username === other.username) throw createError(406, "cannot block oneself.");
+	if (user.isBlocking(other.username)) throw createError(406, "user is already blocked.");
+	if (other.isBlocking(user.username)) throw createError(404, "user is not found.");
+	if (user.isFollowing(other.username)) user.unfollowUser(other);
+	if (other.isFollowing(user.username)) other.unfollowUser(user);
 
-	otherUser.blocking.addToSet(user._id);
-	user.blocked.addToSet(otherUser._id);
+	other.blocking.addToSet(user.username);
+	user.blocked.addToSet(other.username);
 };
 
-userSchema.methods.unblockUser = function unblockUser(otherUser) {
+userSchema.methods.unblockUser = function unblockUser(other) {
 	const user = this;
 
-	if (user.username === otherUser.username) throw createError(406, "cannot unblock oneself.");
-	if (otherUser.isBlocking(user)) throw createError(404, "user is not found.");
-	if (!user.isBlocking(otherUser)) throw createError(406, "user is already unblocked.");
+	if (user.username === other.username) throw createError(406, "cannot unblock oneself.");
+	if (other.isBlocking(user.username)) throw createError(404, "user is not found.");
+	if (!user.isBlocking(other.username)) throw createError(406, "user is already unblocked.");
 
-	otherUser.blocking.remove(user._id);
-	user.blocked.remove(otherUser._id);
-};
-
-userSchema.methods.getUserPosts = async function getUserPosts(lastPostId) {
-	const user = this;
-	const match = { deleted: false };
-	if (lastPostId) {
-		match._id = { $lt: lastPostId };
-	}
-	await user
-		.populate({
-			path: "posts",
-			match,
-			options: {
-				limit: 15,
-				sort: {
-					_id: -1,
-				},
-			},
-		})
-		.execPopulate();
-};
-
-userSchema.methods.populateBlocked = async function populateBlocked() {
-	const user = this;
-	await user.populate({
-		path: "blocked",
-		select: "username displayname _id",
-	});
+	other.blocking.remove(user.username);
+	user.blocked.remove(other.username);
 };
 
 const User = mongoose.model("User", userSchema);

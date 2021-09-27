@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
 app.use((req, res, next) => {
 	if (req.is("application/json") || !req.get("Content-Type")) return next();
-	return next(httpError(406, "Invalid request type."));
+	return next(httpError(406, "invalid request type."));
 });
 
 app.use(

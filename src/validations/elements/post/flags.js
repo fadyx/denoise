@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { flags as validFlags } from "../../../constants/flag.js";
+import { flags as validFlags } from "../../../constants/Flag.js";
 
 const LABEL = "flags";
 

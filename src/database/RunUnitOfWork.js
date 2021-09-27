@@ -6,12 +6,12 @@ const RunUnitOfWork = async (uow) => {
 	try {
 		const result = await uow(session);
 		await session.commitTransaction();
-		await session.endSession();
 		return result;
 	} catch (error) {
 		await session.abortTransaction();
-		session.endSession();
 		throw error;
+	} finally {
+		await session.endSession();
 	}
 };
 

@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-object-injection */
 import mongoose from "mongoose";
 
 const { ValidatorError, ValidationError } = mongoose.Error;
@@ -9,7 +10,7 @@ const getValueByPath = (document, path) => {
 	const splitPath = path.split(".");
 	let value = document;
 
-	for (let i = 0; i < splitPath.length && value !== null && value !== undefined; ++i) {
+	for (let i = 0; i < splitPath.length && value !== null && value !== undefined; i += 1) {
 		value = value[splitPath[i]];
 	}
 	return value;

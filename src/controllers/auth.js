@@ -19,7 +19,7 @@ const register = catchAsync(async (req, res) => {
 
 	const payload = { user, tokens: { refresh, access } };
 	const response = SuccessResponse("registered user successfully.", payload);
-	return res.status(201).json(response);
+	return res.status(httpStatus.CREATED).json(response);
 });
 
 const login = catchAsync(async (req, res) => {
@@ -32,7 +32,7 @@ const login = catchAsync(async (req, res) => {
 
 	const payload = { user, tokens: { refresh, access } };
 	const response = SuccessResponse("logged in user successfully.", payload);
-	return res.status(201).json(response);
+	return res.status(200).json(response);
 });
 
 const resetPassword = catchAsync(async (req, res) => {
@@ -43,7 +43,7 @@ const resetPassword = catchAsync(async (req, res) => {
 	await user.save();
 
 	const response = SuccessResponse("reset password successfully.");
-	return res.status(200).json(response);
+	return res.status(httpStatus.OK).json(response);
 });
 
 const refresh = catchAsync(async (req, res) => {
@@ -54,7 +54,7 @@ const refresh = catchAsync(async (req, res) => {
 
 	const payload = { tokens: { access } };
 	const response = SuccessResponse("access token refreshed successfully.", payload);
-	return res.status(200).json(response);
+	return res.status(httpStatus.OK).json(response);
 });
 
 const logout = catchAsync(async (req, res, _next) => {
@@ -65,7 +65,7 @@ const logout = catchAsync(async (req, res, _next) => {
 	await user.save();
 
 	const response = SuccessResponse("logged out user successfully.");
-	return res.status(200).json(response);
+	return res.status(httpStatus.OK).json(response);
 });
 
 const terminate = catchAsync(async (req, res, _next) => {
@@ -73,18 +73,23 @@ const terminate = catchAsync(async (req, res, _next) => {
 
 	const uow = async (session) => {
 		const user = await User.findByCredentials(username, password);
-		user.deleted = true;
+		user.inactive = true;
 		user.token = null;
 		await user.save({ session });
 		await Post.updateMany(
-			{ userId: user._id, deleted: false, deletedBy: user.username },
+			{
+				username: user.username,
+				deleted: false,
+				createdAt: { $gte: new Date(new Date().getTime() - process.env.LIFESPAN_MILLISECONDS) },
+			},
 			{ deleted: true, deletedBy: user.username },
-		).session(session);
+			{ session },
+		);
 	};
 	await RunUnitOfWork(uow);
 
 	const response = SuccessResponse("terminated user successfully.");
-	return res.status(200).json(response);
+	return res.status(httpStatus.OK).json(response);
 });
 
 export default {

@@ -62,5 +62,5 @@
 		"**/node_modules/**": false,
 		"**/.git": false
 	},
-	"cSpell.words": ["displayname", "fullsetup", "unlove"]
+	"cSpell.words": ["displayname", "fullsetup", "suberrors", "unliked", "unlove"]
 }

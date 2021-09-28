@@ -6,7 +6,7 @@ import controller from "../controllers/notification.js";
 const router = express.Router({ caseSensitive: true, strict: true });
 
 router.get("/", auth, controller.getNotifications);
-// router.post("/:id/read", controller.readNotification);
-// router.post("/:id/read/all", controller.readAllNotification);
+router.post("/:notificationId/read", auth, controller.readNotification);
+router.post("/read-all", auth, controller.readAllNotification);
 
 export default router;

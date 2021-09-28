@@ -4,6 +4,8 @@ import _ from "lodash";
 
 import Post from "../models/post.js";
 import User from "../models/user.js";
+import Notification from "../models/notification.js";
+
 import catchAsync from "../middleware/catchAsyncErrors.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
 import { SuccessResponse } from "../utils/apiResponse.js";
@@ -65,6 +67,7 @@ const follow = catchAsync(async (req, res) => {
 	const uow = async (session) => {
 		await user.save({ session });
 		await followee.save({ session });
+		await Notification.pushStarNotification(followee.username, user.username);
 	};
 	await RunUnitOfWork(uow);
 
@@ -105,6 +108,8 @@ const block = catchAsync(async (req, res) => {
 	const uow = async (session) => {
 		await user.save({ session });
 		await blockedUser.save({ session });
+		await Notification.unsubscribeUserFromUserPosts(user.username, blockedUser.username);
+		await Notification.unsubscribeUserFromUserPosts(blockedUser.username, user.username);
 	};
 	await RunUnitOfWork(uow);
 
@@ -181,6 +186,8 @@ const clear = catchAsync(async (req, res) => {
 		},
 		{ deleted: true, deletedBy: user.username },
 	);
+
+	await Notification.deleteUserNotifications(user.username);
 
 	const response = SuccessResponse("cleared posts successfully.");
 	return res.status(httpStatus.OK).json(response);

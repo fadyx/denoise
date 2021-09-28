@@ -42,7 +42,7 @@
 	"vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
 	"window.title": "${dirty}${activeEditorShort}${separator}${rootName}",
 	"window.titleSeparator": " - ",
-	"window.zoomLevel": 0,
+	"window.zoomLevel": -1,
 	"workbench.editor.highlightModifiedTabs": true,
 	"workbench.editor.wrapTabs": false,
 	"workbench.sideBar.location": "left",

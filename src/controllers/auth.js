@@ -8,6 +8,7 @@ import catchAsync from "../middleware/catchAsyncErrors.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
 
 import { SuccessResponse } from "../utils/apiResponse.js";
+import Notification from "../models/notification.js";
 
 const register = catchAsync(async (req, res) => {
 	const userDto = req.body;
@@ -85,6 +86,7 @@ const terminate = catchAsync(async (req, res, _next) => {
 			{ deleted: true, deletedBy: user.username },
 			{ session },
 		);
+		await Notification.deleteUserNotifications(user.username);
 	};
 	await RunUnitOfWork(uow);
 

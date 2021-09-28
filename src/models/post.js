@@ -75,6 +75,14 @@ const PostSchema = new Schema(
 			},
 		],
 
+		subscribers: [
+			{
+				type: String,
+				ref: "User",
+				require: [true, "username is required."],
+			},
+		],
+
 		deleted: {
 			type: Boolean,
 			required: true,

@@ -4,6 +4,7 @@ import httpStatus from "http-status";
 
 import Post from "../models/post.js";
 import Comment from "../models/comment.js";
+import Notification from "../models/notification.js";
 
 import catchAsync from "../middleware/catchAsyncErrors.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
@@ -22,6 +23,7 @@ const createPost = catchAsync(async (req, res) => {
 			text: postDto.text,
 			allowComments: postDto.allowComments,
 			flags: postDto.flags,
+			subscribers: [user.username],
 		});
 		await post.save({ session });
 		user.profile.stats.posts += 1;
@@ -75,6 +77,7 @@ const createComment = catchAsync(async (req, res) => {
 		await comment.save({ session });
 		post.stats.comments += 1;
 		await post.save({ session });
+		await Notification.pushCommentNotification(user.username, post);
 		return comment;
 	};
 	const comment = await RunUnitOfWork(uow);
@@ -90,11 +93,12 @@ const deletePost = catchAsync(async (req, res) => {
 
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !(await user.isBlockingOrBlockedBy(post.username)))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	if (!user.username === post.username) throw httpError(httpStatus.UNAUTHORIZED, "unauthorized.");
 	post.deleted = true;
 	await post.save();
+	await Notification.deletePostNotifications(post);
 
 	const response = SuccessResponse("deleted post successfully.");
 	return res.status(httpStatus.OK).json(response);
@@ -109,7 +113,7 @@ const deleteComment = catchAsync(async (req, res) => {
 		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
 
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	const comment = await Comment.findById(commentId);
@@ -122,6 +126,7 @@ const deleteComment = catchAsync(async (req, res) => {
 	const uow = async (session) => {
 		await comment.save({ session });
 		await post.save({ session });
+		await Notification.popCommentNotification(user.username, post);
 	};
 	await RunUnitOfWork(uow);
 
@@ -136,12 +141,14 @@ const likePost = catchAsync(async (req, res) => {
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	const post = await Post.findById(postId);
 
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	if (post.likes.includes(user.username)) throw httpError(httpStatus.FORBIDDEN, "post is already liked.");
 	post.likes.addToSet(user.username);
 	await post.save();
+
+	await Notification.pushLikeNotification(user.username, post);
 
 	const response = SuccessResponse("liked post successfully.");
 	return res.status(httpStatus.OK).json(response);
@@ -154,12 +161,14 @@ const unlikePost = catchAsync(async (req, res) => {
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	if (!post.likes.includes(user.username)) throw httpError(httpStatus.FORBIDDEN, "post is already not liked.");
-	post.likes.addToSet(user.username);
+	post.likes.remove(user.username);
 	await post.save();
+
+	await Notification.popCommentNotification(user.username, post);
 
 	const response = SuccessResponse("unliked post successfully.");
 	return res.status(httpStatus.OK).json(response);
@@ -171,7 +180,7 @@ const getPostLikes = catchAsync(async (req, res) => {
 
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	if (user.username !== post.username) httpError(httpStatus.FORBIDDEN, "only authors can view likes list.");
 
@@ -198,7 +207,7 @@ const getPostComments = catchAsync(async (req, res) => {
 	if (lastCommentId && !validation.isValidObjectId(lastCommentId))
 		throw httpError(httpStatus.NOT_FOUND, "invalid pagination key.");
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	const comments = await Comment.find({
@@ -281,7 +290,7 @@ const reportPost = catchAsync(async (req, res) => {
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	const post = await Post.findById(postId);
 
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	post.reporters.addToSet(user.username);
@@ -301,7 +310,7 @@ const reportComment = catchAsync(async (req, res) => {
 		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
 
 	const post = await Post.findById(postId);
-	if (!post || post.deleted || !user.isBlockingOrBlockedBy(post.username))
+	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
 		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
 	const comment = await Comment.findById(commentId);

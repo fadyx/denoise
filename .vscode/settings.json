@@ -42,7 +42,7 @@
 	"vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
 	"window.title": "${dirty}${activeEditorShort}${separator}${rootName}",
 	"window.titleSeparator": " - ",
-	"window.zoomLevel": -1,
+	"window.zoomLevel": 0,
 	"workbench.editor.highlightModifiedTabs": true,
 	"workbench.editor.wrapTabs": false,
 	"workbench.sideBar.location": "left",
@@ -62,5 +62,19 @@
 		"**/node_modules/**": false,
 		"**/.git": false
 	},
-	"cSpell.words": ["displayname", "fullsetup", "suberrors", "unliked", "unlove"]
+	"cSpell.words": [
+		"bufferutil",
+		"Cgreen",
+		"cloc",
+		"Creset",
+		"denoise",
+		"displayname",
+		"fullsetup",
+		"godaddy",
+		"jsinspect",
+		"lcov",
+		"suberrors",
+		"unliked",
+		"unlove"
+	]
 }

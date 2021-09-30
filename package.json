@@ -25,10 +25,10 @@
 	],
 	"main": "src/index.js",
 	"scripts": {
-		"start:production": "node -r dotenv/config src/index.js dotenv_config_path=.production.env",
+		"start:prod": "node -r dotenv/config src/index.js dotenv_config_path=.production.env",
 		"start:debug": "DEBUG=server:* node -r dotenv/config src/index.js dotenv_config_path=.production.env",
-		"development": "npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
-		"development:debug": "DEBUG=server:* npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
+		"dev": "npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
+		"dev:debug": "DEBUG=server:* npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env",
 		"git:log": "git log --graph --decorate --all --abbrev-commit --date=relative --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'",
 		"git:clean:execute": "git clean -nX",
 		"git:clean:dry": "git clean -ndX",

@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import _ from "lodash";
 import createError from "http-errors";
 
@@ -191,47 +190,28 @@ userSchema.methods.toJSON = function toJSON() {
 	return publicUser;
 };
 
-userSchema.methods.generateRefreshToken = function generateRefreshToken() {
-	const payload = {
-		username: this.username,
-		role: this.role,
-	};
-	const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET_KEY, { expiresIn: process.env.JWT_REFRESH_DURATION });
+userSchema.methods.isActive = function isActive() {
+	return this.inactive && this.banned;
+};
+
+userSchema.methods.setRefreshToken = function setRefreshToken(token) {
 	this.token = token;
-	return token;
 };
 
-userSchema.methods.generateAccessToken = function generateAccessToken() {
-	const payload = {
-		username: this.username,
-		role: this.role,
-	};
-	const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY, { expiresIn: process.env.JWT_ACCESS_DURATION });
-	return token;
+userSchema.methods.setPassword = function setPassword(password) {
+	this.password = password;
 };
 
-userSchema.statics.findByUsername = async function findByUsername(username) {
-	const user = await this.findOne({ username });
-	return user;
+userSchema.methods.terminate = function terminate() {
+	this.token = null;
+	this.inactive = true;
+	this.inactivatedAt = new Date();
 };
 
 userSchema.methods.checkPassword = async function checkPassword(password) {
 	const user = this;
 	const match = await bcrypt.compare(password, user.password);
 	return match;
-};
-
-userSchema.statics.findByCredentials = async function findByCredentials(username, password) {
-	const user = await this.findActiveUserByUsername(username);
-	const isCorrectPassword = await user.checkPassword(password);
-	if (!isCorrectPassword) throw createError("invalid credentials.");
-	return user;
-};
-
-userSchema.statics.findActiveUserByUsername = async function findActiveUserByUsername(username) {
-	const user = await this.findOne({ username });
-	if (!user || user.inactive || user.banned) throw createError("user is not found.");
-	return user;
 };
 
 userSchema.methods.isBlocking = function isBlocking(username) {

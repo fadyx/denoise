@@ -75,6 +75,7 @@
 		"lcov",
 		"suberrors",
 		"unliked",
-		"unlove"
+		"unlove",
+		"usecases"
 	]
 }

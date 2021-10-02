@@ -147,33 +147,6 @@ PostSchema.pre("save", async function pre(next) {
 	next();
 });
 
-PostSchema.statics.getUserPosts = async function getUserPosts(username, lastPostId) {
-	const limit = 20;
-	const sort = { _id: -1 };
-	const match = { deleted: false, username };
-	if (lastPostId) match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
-
-	const userPosts = await this.aggregate([
-		{
-			$match: { ...match },
-		},
-		{
-			$addFields: {
-				isLiked: {
-					$cond: [{ $in: [username, "$likes"] }, true, false],
-				},
-			},
-		},
-	])
-		.sort(sort)
-		.limit(limit);
-
-	let hasNextPage = false;
-	if (userPosts.length < limit) hasNextPage = true;
-
-	return { posts: userPosts, hasNextPage };
-};
-
 const Post = mongoose.model("Post", PostSchema);
 
 export default Post;

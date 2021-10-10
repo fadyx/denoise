@@ -5,6 +5,7 @@ const Flag = {
 	SENSITIVE: "sensitive",
 	SERIOUS: "serious",
 	TROLL: "troll",
+	NSFW: "nsfw",
 };
 
 const flags = Object.values(Flag);

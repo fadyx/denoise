@@ -4,14 +4,11 @@ import NotificationService from "../../services/notification.js";
 
 const followUser = async (followerUsername, followeeUsername) => {
 	const uow = async (session) => {
-		await UserService.followUser({ followerUsername, followeeUsername }, { session });
-		await NotificationService.pushStarNotification(
-			{ recipient: followeeUsername, starer: followerUsername },
-			{ session },
-		);
+		await UserService.followUser(followerUsername, followeeUsername, { session });
+		// TODO:
+		// await NotificationService.pushStarNotification(followeeUsername, followerUsername, { session });
 	};
-	const user = await RunUnitOfWork(uow);
-	return user;
+	await RunUnitOfWork(uow);
 };
 
 export default followUser;

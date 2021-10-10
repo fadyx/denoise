@@ -191,10 +191,14 @@ userSchema.methods.toJSON = function toJSON() {
 };
 
 userSchema.methods.isActive = function isActive() {
-	return this.inactive && this.banned;
+	return !this.inactive && !this.banned;
 };
 
-userSchema.methods.setRefreshToken = function setRefreshToken(token) {
+userSchema.methods.incrementPostsCounter = function incrementPostsCounter() {
+	this.profile.stats.posts += 1;
+};
+
+userSchema.methods.setToken = function setToken(token) {
 	this.token = token;
 };
 
@@ -233,6 +237,11 @@ userSchema.methods.isBlockingOrBlockedBy = function isBlockingOrBlockedBy(userna
 userSchema.methods.isFollowing = function isFollowing(username) {
 	const user = this;
 	return user.followees.includes(username);
+};
+
+userSchema.methods.isFollowedBy = function isFollowedBy(username) {
+	const user = this;
+	return user.followers.includes(username);
 };
 
 userSchema.methods.followUser = function followUser(followee) {
@@ -277,6 +286,10 @@ userSchema.methods.unblockUser = function unblockUser(other) {
 
 	other.blocking.remove(user.username);
 	user.blocked.remove(other.username);
+};
+
+userSchema.methods.logout = function logout() {
+	this.token = null;
 };
 
 const User = mongoose.model("User", userSchema);

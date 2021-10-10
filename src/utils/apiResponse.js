@@ -7,10 +7,11 @@ const SuccessResponse = (message, payload) => {
 	return response;
 };
 
-const ErrorResponse = (message) => {
+const ErrorResponse = (message, errors) => {
 	const response = {
 		status: "failure",
 		message,
+		errors,
 	};
 	return response;
 };

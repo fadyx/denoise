@@ -4,6 +4,7 @@ import _ from "lodash";
 import text from "../utils/text.js";
 
 import { flags } from "../constants/Flag.js";
+import { tags } from "../constants/Tag.js";
 
 const { Schema } = mongoose;
 
@@ -75,10 +76,21 @@ const PostSchema = new Schema(
 			},
 		],
 
+		tags: [
+			{
+				type: String,
+				required: [true, "tag is required."],
+				enum: {
+					values: tags,
+					message: "invalid tag input.",
+				},
+				index: true,
+			},
+		],
+
 		subscribers: [
 			{
 				type: String,
-				ref: "User",
 				require: [true, "username is required."],
 			},
 		],
@@ -96,21 +108,6 @@ const PostSchema = new Schema(
 			foreignField: "username",
 			index: true,
 		},
-
-		reported: {
-			type: Boolean,
-			default: false,
-			index: true,
-		},
-
-		reporters: [
-			{
-				type: String,
-				ref: "User",
-				foreignField: "username",
-				required: true,
-			},
-		],
 	},
 	{ timestamps: true },
 );
@@ -126,6 +123,7 @@ PostSchema.methods.toJSON = function toJSON() {
 		"hashtags",
 		"allowComments",
 		"flags",
+		"tags",
 		"createdAt",
 	]);
 
@@ -146,6 +144,23 @@ PostSchema.pre("save", async function pre(next) {
 
 	next();
 });
+
+PostSchema.methods.isLikedBy = function isLikedBy(username) {
+	return this.likes.includes(username);
+};
+
+PostSchema.methods.likePostBy = function likePostBy(username) {
+	this.likes.addToSet(username);
+};
+
+PostSchema.methods.unlikePostBy = function unlikePostBy(username) {
+	this.likes.remove(username);
+};
+
+PostSchema.methods.markAsDeletedBy = function markAsDeletedBy(deletedBy) {
+	this.deleted = true;
+	this.deletedBy = deletedBy;
+};
 
 const Post = mongoose.model("Post", PostSchema);
 

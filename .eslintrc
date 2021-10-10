@@ -27,6 +27,6 @@
 		"node/exports-style": "error",
 		"quotes": ["error", "double"],
 		"import/extensions": ["error", "always", { "js": "always" }],
-		"prettier/prettier": "warn"
+		"prettier/prettier": "off"
 	}
 }

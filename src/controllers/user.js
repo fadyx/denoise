@@ -18,73 +18,55 @@ import updateProfileUseCase from "../usecases/user/updateProfile.js";
 import getBlockedUsersFor from "../usecases/user/getBlockedUsersFor.js";
 
 const myProfile = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	const user = await getMyProfileUseCase(decodedAccessToken.username);
+	const { username } = req.decodedAccessToken;
+	const user = await getMyProfileUseCase(username);
 	const payload = { user };
 	const response = SuccessResponse("fetched user successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const getUser = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	const { requestedUserUsername } = req.params;
-
+	const { username } = req.decodedAccessToken;
+	const { username: requestedUserUsername } = req.params;
 	if (!validation.isValidUsername(requestedUserUsername)) throw httpError(httpStatus.NOT_FOUND, "user is not found.");
-
-	let user;
-
-	if (decodedAccessToken.username === requestedUserUsername)
-		user = await getMyProfileUseCase(decodedAccessToken.username);
-	else user = await getUserProfileUseCase(decodedAccessToken.username, requestedUserUsername);
-
+	const user = await (username === requestedUserUsername
+		? getMyProfileUseCase(username)
+		: getUserProfileUseCase(username, requestedUserUsername));
 	const payload = { user };
 	const response = SuccessResponse("fetched user successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const updateProfile = async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username } = req.decodedAccessToken;
 	const updates = req.body;
-	const user = await updateProfileUseCase(decodedAccessToken.username, updates);
+	const user = await updateProfileUseCase(username, updates);
 	const payload = { user };
 	const response = SuccessResponse("updated user successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 };
 
 const follow = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username: followerUsername } = req.decodedAccessToken;
 	const followeeUsername = req.params.username;
-	const followerUsername = decodedAccessToken.username;
-
 	if (!validation.isValidUsername(followeeUsername)) throw httpError(httpStatus.NOT_FOUND, "user is not found.");
-	if (followerUsername === followeeUsername) throw httpError(httpStatus.NOT_ACCEPTABLE, "cannot follow oneself.");
-
-	const user = await followUserUseCase(followerUsername, followeeUsername);
-
-	const payload = { user };
-	const response = SuccessResponse("followed user successfully.", payload);
+	await followUserUseCase(followerUsername, followeeUsername);
+	const response = SuccessResponse("followed user successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const unfollow = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username: followerUsername } = req.decodedAccessToken;
 	const followeeUsername = req.params.username;
-	const followerUsername = decodedAccessToken.username;
-
 	if (!validation.isValidUsername(followeeUsername)) throw httpError(httpStatus.NOT_FOUND, "user is not found.");
-	if (followerUsername === followeeUsername) throw httpError(httpStatus.NOT_ACCEPTABLE, "cannot unfollow oneself.");
-
-	const user = await unfollowUserUseCase(followerUsername, followeeUsername);
-
-	const payload = { user };
-	const response = SuccessResponse("unfollowed user successfully.", payload);
+	await unfollowUserUseCase(followerUsername, followeeUsername);
+	const response = SuccessResponse("unfollowed user successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const block = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username: blockerUsername } = req.decodedAccessToken;
 	const blockedUsername = req.params.username;
-	const blockerUsername = decodedAccessToken.username;
 	if (!validation.isValidUsername(blockedUsername)) throw httpError(httpStatus.NOT_FOUND, "user is not found.");
 	await blockUserUseCase(blockerUsername, blockedUsername);
 	const response = SuccessResponse("blocked user successfully.");
@@ -92,9 +74,8 @@ const block = catchAsync(async (req, res) => {
 });
 
 const unblock = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username: blockerUsername } = req.decodedAccessToken;
 	const blockedUsername = req.params.username;
-	const blockerUsername = decodedAccessToken.username;
 	if (!validation.isValidUsername(blockedUsername)) throw httpError(httpStatus.NOT_FOUND, "User not found.");
 	await unblockUserUseCase(blockerUsername, blockedUsername);
 	const response = SuccessResponse("unblocked user successfully.");
@@ -102,39 +83,39 @@ const unblock = catchAsync(async (req, res) => {
 });
 
 const myPosts = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username } = req.decodedAccessToken;
 	const { lastId } = req.query;
 
 	if (lastId && !validation.isValidObjectId(lastId))
 		throw httpError(httpStatus.BAD_REQUEST, "invalid pagination key.");
 
-	const payload = await getUserPostsUseCase(decodedAccessToken.username, lastId);
+	const payload = await getUserPostsUseCase(username, lastId);
 	const response = SuccessResponse("fetched posts successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const userPosts = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	const { username } = req.params;
+	const { requesterUsername } = req.decodedAccessToken;
+	const { username: requestedUsername } = req.params;
 	const { lastId } = req.query;
-	if (!validation.isValidUsername(username)) throw httpError(httpStatus.NOT_FOUND, "user was not found.");
+	if (!validation.isValidUsername(requestedUsername)) throw httpError(httpStatus.NOT_FOUND, "user was not found.");
 	if (lastId && !validation.isValidObjectId(lastId))
 		throw httpError(httpStatus.BAD_REQUEST, "invalid pagination key.");
-	const payload = await getUserPostsForUseCase(decodedAccessToken.username, lastId);
+	const payload = await getUserPostsForUseCase(requesterUsername, requestedUsername, lastId);
 	const response = SuccessResponse("fetched posts successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const clear = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	await selfClearUserPostsUseCase(decodedAccessToken.username);
+	const { username } = req.decodedAccessToken;
+	await selfClearUserPostsUseCase(username);
 	const response = SuccessResponse("cleared posts successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const blocked = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	const blockedUsers = await getBlockedUsersFor(decodedAccessToken.username);
+	const { username } = req.decodedAccessToken;
+	const blockedUsers = await getBlockedUsersFor(username);
 	const payload = { count: blockedUsers.length, blocked: blockedUsers };
 	const response = SuccessResponse("fetched blocked users successfully.", payload);
 	return res.status(httpStatus.OK).json(response);

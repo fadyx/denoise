@@ -1,329 +1,235 @@
-import mongoose from "mongoose";
 import httpError from "http-errors";
 import httpStatus from "http-status";
 
-import Post from "../models/post.js";
-import Comment from "../models/comment.js";
-import Notification from "../models/notification.js";
-
 import catchAsync from "../middleware/catchAsyncErrors.js";
-import RunUnitOfWork from "../database/RunUnitOfWork.js";
 import validation from "../utils/validation.js";
 import { SuccessResponse } from "../utils/apiResponse.js";
-import User from "../models/user.js";
+
+import submitNewPostUseCase from "../usecases/post/submitNewPost.js";
+import getPostForUseCase from "../usecases/post/getPostFor.js";
+import getCommentForUseCase from "../usecases/post/getCommentFor.js";
+import deletePostUseCase from "../usecases/post/deletePost.js";
+import commentOnPostUseCase from "../usecases/post/commentOnPost.js";
+import deleteCommentUseCase from "../usecases/post/deleteComment.js";
+import likePostUseCase from "../usecases/post/likePost.js";
+import unlikePostUseCase from "../usecases/post/unlikePost.js";
+import getPostLikesUseCase from "../usecases/post/getPostLikes.js";
+import reportPostUseCase from "../usecases/post/reportPost.js";
+import reportCommentUseCase from "../usecases/post/reportComment.js";
+import reportReplyUseCase from "../usecases/post/reportReply.js";
+import getNewsfeedForUserUseCase from "../usecases/post/newsfeed.js";
+import getPostCommentsUseCase from "../usecases/post/getPostComments.js";
+import getCommentRepliesUseCase from "../usecases/post/getCommentReplies.js";
+import replyOnCommentUseCase from "../usecases/post/replyOnComment.js";
+import deleteReplyUseCase from "../usecases/post/deleteReply.js";
 
 const createPost = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const postDto = req.body;
-
-	const uow = async (session) => {
-		const post = new Post({
-			username: user.username,
-			displayname: user.profile.displayname,
-			text: postDto.text,
-			allowComments: postDto.allowComments,
-			flags: postDto.flags,
-			subscribers: [user.username],
-		});
-		await post.save({ session });
-		user.profile.stats.posts += 1;
-		await user.save({ session });
-		return post;
-	};
-
-	const post = await RunUnitOfWork(uow);
-
-	const liked = post.likes.includes(user.username);
-
-	const payload = { post: { ...post.toJSON(), liked } };
+	const post = await submitNewPostUseCase(postDto, username);
+	const payload = { post };
 	const response = SuccessResponse("created post successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const getPost = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { postId } = req.params;
-
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const post = await Post.findById(postId);
-	if (!post || user.isBlockingOrBlockedBy(post.username)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const liked = post.likes.includes(user.username);
-
-	const payload = { post: { ...post.toJSON(), liked } };
+	const payload = await getPostForUseCase(postId, username);
 	const response = SuccessResponse("fetched post successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
-const createComment = catchAsync(async (req, res) => {
-	const { user } = req;
-	const { postId } = req.params;
-	const commentDto = req.body;
-
-	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const uow = async (session) => {
-		const post = await Post.findById(postId).session(session);
-		if (!post || user.isBlockingOrBlockedBy(post.username))
-			throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-		if (!post.allowComments) throw httpError(403, "comments are not allowed on this post.");
-		const comment = new Comment({
-			postId: post._id,
-			username: user.username,
-			displayname: user.profile.displayname,
-			text: commentDto.text,
-		});
-		await comment.save({ session });
-		post.stats.comments += 1;
-		await post.save({ session });
-		await Notification.pushCommentNotification(user.username, post);
-		return comment;
-	};
-	const comment = await RunUnitOfWork(uow);
-
-	const payload = { comment };
-	const response = SuccessResponse("created comment successfully.", payload);
-	return res.status(httpStatus.CREATED).json(response);
-});
-
-const deletePost = catchAsync(async (req, res) => {
-	const { user } = req;
-	const { postId } = req.params;
-
-	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	if (!user.username === post.username) throw httpError(httpStatus.UNAUTHORIZED, "unauthorized.");
-	post.deleted = true;
-	await post.save();
-	await Notification.deletePostNotifications(post);
-
-	const response = SuccessResponse("deleted post successfully.");
-	return res.status(httpStatus.OK).json(response);
-});
-
-const deleteComment = catchAsync(async (req, res) => {
-	const { user } = req;
-	const { postId } = req.params;
-	const { commentId } = req.params;
-
-	if (!validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
+const getComment = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId } = req.params;
+	if (!postId || !commentId || !validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
 		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
-
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const comment = await Comment.findById(commentId);
-	if (!comment || comment.deleted || !comment.postId.equals(post._id))
-		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
-	if (!user._id.equals(comment.userId)) throw httpError(httpStatus.UNAUTHORIZED, "unauthorized.");
-	comment.deleted = true;
-	post.stats.comments -= 1;
-
-	const uow = async (session) => {
-		await comment.save({ session });
-		await post.save({ session });
-		await Notification.popCommentNotification(user.username, post);
-	};
-	await RunUnitOfWork(uow);
-
-	const response = SuccessResponse("deleted comment successfully.");
+	const payload = await getCommentForUseCase(postId, commentId, username);
+	const response = SuccessResponse("fetched comment successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const likePost = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { postId } = req.params;
-
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	const post = await Post.findById(postId);
-
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	if (post.likes.includes(user.username)) throw httpError(httpStatus.FORBIDDEN, "post is already liked.");
-	post.likes.addToSet(user.username);
-	await post.save();
-
-	await Notification.pushLikeNotification(user.username, post);
-
+	await likePostUseCase(postId, username);
 	const response = SuccessResponse("liked post successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const unlikePost = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { postId } = req.params;
 
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	if (!post.likes.includes(user.username)) throw httpError(httpStatus.FORBIDDEN, "post is already not liked.");
-	post.likes.remove(user.username);
-	await post.save();
-
-	await Notification.popCommentNotification(user.username, post);
+	await unlikePostUseCase(postId, username);
 
 	const response = SuccessResponse("unliked post successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const getPostLikes = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { postId } = req.params;
-
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	if (user.username !== post.username) httpError(httpStatus.FORBIDDEN, "only authors can view likes list.");
-
-	const likes = await User.aggregate([
-		{
-			$match: {
-				username: { $in: post.likes },
-			},
-		},
-		{ $project: { username: true, displayname: "$profile.displayname", _id: false } },
-	]);
-
+	const likes = await getPostLikesUseCase(postId, username);
 	const payload = { likes };
 	const response = SuccessResponse("fetched post likes successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
+const createComment = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId } = req.params;
+	const commentDto = req.body;
+	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
+	const comment = await commentOnPostUseCase(postId, username, commentDto);
+	const payload = { comment };
+	const response = SuccessResponse("created comment successfully.", payload);
+	return res.status(httpStatus.CREATED).json(response);
+});
+
+const createReply = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId } = req.params;
+	const replyDto = req.body;
+	if (!postId || !commentId || !validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
+		throw httpError(httpStatus.NOT_FOUND, "post/comment was not found.");
+	const reply = await replyOnCommentUseCase(postId, commentId, username, replyDto);
+	const payload = { reply };
+	const response = SuccessResponse("created reply successfully.", payload);
+	return res.status(httpStatus.CREATED).json(response);
+});
+
+const deletePost = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId } = req.params;
+	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
+	await deletePostUseCase(postId, username);
+	const response = SuccessResponse("deleted post successfully.");
+	return res.status(httpStatus.OK).json(response);
+});
+
 const getPostComments = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { lastCommentId } = req.query;
 	const { postId } = req.params;
 
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
 	if (lastCommentId && !validation.isValidObjectId(lastCommentId))
 		throw httpError(httpStatus.NOT_FOUND, "invalid pagination key.");
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const comments = await Comment.find({
-		postId,
-		_id: { $lt: mongoose.Types.ObjectId(lastCommentId) },
-		deleted: false,
-		username: { $nin: [...user.blocking, ...user.blocked] },
-	})
-		.sort({ _id: -1 })
-		.limit(20)
-		.select("-__v -postId -updatedAt -deleted")
-		.exec();
-
+	const comments = await getPostCommentsUseCase(postId, username, lastCommentId);
 	const payload = { comments };
 	const response = SuccessResponse("fetched post comments successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
+const deleteComment = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId } = req.params;
+	if (!postId || !validation.isValidObjectId(postId) || !commentId || !validation.isValidObjectId(commentId))
+		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
+	await deleteCommentUseCase(postId, commentId, username);
+	const response = SuccessResponse("deleted comment successfully.");
+	return res.status(httpStatus.OK).json(response);
+});
+
+const deleteReply = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId, replyId } = req.params;
+	if (
+		!postId ||
+		!commentId ||
+		!replyId ||
+		!validation.isValidObjectId(postId) ||
+		!validation.isValidObjectId(commentId) ||
+		!validation.isValidObjectId(replyId)
+	)
+		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
+	await deleteReplyUseCase(postId, commentId, replyId, username);
+	const response = SuccessResponse("deleted comment successfully.");
+	return res.status(httpStatus.OK).json(response);
+});
+
 const newsfeed = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { lastPostId } = req.query;
 	const { type } = req.params;
 	if (lastPostId && !validation.isValidObjectId(lastPostId))
 		throw httpError(httpStatus.BAD_REQUEST, "invalid pagination key.");
-	const match = {};
-	if (lastPostId) match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
-	const limit = 20;
-	let sort;
 
-	switch (type) {
-		case "latest":
-			sort = { _id: -1 };
-			match.username = { $nin: [...user.blocking, ...user.blocked] };
-			break;
-		case "followees":
-			sort = { _id: -1 };
-			match.username = { $in: user.followees };
-			break;
-		case "hot":
-			match.username = { $nin: [...user.blocking, ...user.blocked] };
-			sort = { "stats.likes": -1 };
-			break;
-		default:
-			throw httpError(httpStatus.BAD_REQUEST, "invalid newsfeed type.");
-	}
+	const timeline = await getNewsfeedForUserUseCase(username, type, lastPostId);
 
-	const posts = await Post.aggregate([
-		{
-			$match: {
-				...match,
-				deleted: false,
-				createdAt: {
-					$gte: new Date(new Date().getTime() - process.env.LIFESPAN_MILLISECONDS),
-				},
-			},
-		},
-		{
-			$set: {
-				liked: {
-					$in: [user.username, "$likes"],
-				},
-			},
-		},
-	])
-		.sort(sort)
-		.limit(limit);
-
-	let lastPage = false;
-	if (posts.length < limit) lastPage = true;
-
-	const payload = { posts, lastPage };
+	const payload = { timeline };
 	const response = SuccessResponse("fetched newsfeed successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const reportPost = catchAsync(async (req, res) => {
-	const { user } = req;
+	const { username } = req.decodedAccessToken;
 	const { postId } = req.params;
+	const { reportType, userFeedback } = req.body;
 
 	if (!validation.isValidObjectId(postId)) throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-	const post = await Post.findById(postId);
-
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	post.reporters.addToSet(user.username);
-	post.reported = true;
-	await post.save();
-
+	await reportPostUseCase(postId, username, reportType, userFeedback);
 	const response = SuccessResponse("post reported successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
 
 const reportComment = catchAsync(async (req, res) => {
-	const { user } = req;
-	const { postId } = req.params;
-	const { commentId } = req.params;
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId } = req.params;
+	const { reportType, userFeedback } = req.body;
 
-	if (!validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
+	if (!postId || !commentId || !validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
 		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
-
-	const post = await Post.findById(postId);
-	if (!post || post.deleted || user.isBlockingOrBlockedBy(post.username))
-		throw httpError(httpStatus.NOT_FOUND, "post was not found.");
-
-	const comment = await Comment.findById(commentId);
-	if (!comment || comment.deleted || !comment.postId.equals(post._id))
-		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
-
-	comment.reporters.addToSet(user.username);
-	comment.reported = true;
-	await comment.save();
-
+	await reportCommentUseCase(postId, commentId, username, reportType, userFeedback);
 	const response = SuccessResponse("reported comment successfully.");
 	return res.status(httpStatus.OK).json(response);
 });
+
+const reportReply = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { postId, commentId, replyId } = req.params;
+	const { reportType, userFeedback } = req.body;
+
+	if (
+		!postId ||
+		!commentId ||
+		!replyId ||
+		!validation.isValidObjectId(postId) ||
+		!validation.isValidObjectId(commentId) ||
+		!validation.isValidObjectId(replyId)
+	)
+		throw httpError(httpStatus.NOT_FOUND, "reply was not found.");
+
+	await reportReplyUseCase(postId, commentId, replyId, username, reportType, userFeedback);
+	const response = SuccessResponse("reported comment successfully.");
+	return res.status(httpStatus.OK).json(response);
+});
+
+const getCommentReplies = catchAsync(async (req, res) => {
+	const { username } = req.decodedAccessToken;
+	const { lastReplyId } = req.query;
+	const { postId, commentId } = req.params;
+
+	if (!postId || !commentId || !validation.isValidObjectId(postId) || !validation.isValidObjectId(commentId))
+		throw httpError(httpStatus.NOT_FOUND, "comment was not found.");
+
+	if (lastReplyId && !validation.isValidObjectId(lastReplyId))
+		throw httpError(httpStatus.NOT_FOUND, "invalid pagination key.");
+
+	const replies = await getCommentRepliesUseCase(postId, commentId, username, lastReplyId);
+	const payload = { replies };
+	const response = SuccessResponse("fetched comment replies successfully.", payload);
+	return res.status(httpStatus.OK).json(response);
+});
+
+// TODO: report reply
 
 export default {
 	createPost,
@@ -332,10 +238,15 @@ export default {
 	likePost,
 	reportPost,
 	unlikePost,
+	deleteReply,
 	createComment,
+	createReply,
 	deletePost,
+	getCommentReplies,
+	getComment,
 	deleteComment,
 	reportComment,
+	reportReply,
 	getPostLikes,
 	getPostComments,
 };

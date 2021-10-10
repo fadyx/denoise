@@ -1,8 +1,15 @@
 import mongoose from "mongoose";
 
-const RunUnitOfWork = async (uow) => {
-	const session = await mongoose.startSession();
-	session.startTransaction();
+const RunUnitOfWork = async (uow, passedSession) => {
+	let session;
+
+	if (!passedSession) {
+		session = await mongoose.startSession();
+		session.startTransaction();
+	} else {
+		session = passedSession;
+	}
+
 	try {
 		const result = await uow(session);
 		await session.commitTransaction();

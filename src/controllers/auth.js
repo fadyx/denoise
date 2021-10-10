@@ -40,7 +40,7 @@ const refresh = catchAsync(async (req, res) => {
 	return res.status(httpStatus.OK).json(response);
 });
 
-const logout = catchAsync(async (req, res, _next) => {
+const logout = catchAsync(async (req, res) => {
 	const { refreshToken } = req;
 	const { username } = req.decodedRefreshToken;
 	await logoutUseCase(username, refreshToken);
@@ -48,11 +48,9 @@ const logout = catchAsync(async (req, res, _next) => {
 	return res.status(httpStatus.OK).json(response);
 });
 
-const terminate = catchAsync(async (req, res, _next) => {
+const terminate = catchAsync(async (req, res) => {
 	const { username, password } = req.body;
-
 	await terminateUseCase(username, password);
-
 	const response = SuccessResponse("terminated user successfully.");
 	return res.status(httpStatus.OK).json(response);
 });

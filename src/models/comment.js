@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import _ from "lodash";
 
 const { Schema } = mongoose;
 
@@ -43,23 +44,53 @@ const commentSchema = new Schema(
 			index: true,
 		},
 
-		reported: {
-			type: Boolean,
-			default: false,
-			index: true,
-		},
-
-		reporters: [
+		upvotes: [
 			{
 				type: String,
+				required: [true, "username is required."],
 				ref: "User",
 				foreignField: "username",
-				required: true,
 			},
 		],
+
+		downvotes: [
+			{
+				type: String,
+				required: [true, "username is required."],
+				ref: "User",
+				foreignField: "username",
+			},
+		],
+
+		stats: {
+			replies: { type: Number, default: 0 },
+			upvotes: { type: Number, default: 0 },
+			downvotes: { type: Number, default: 0 },
+		},
+
+		hasReplies: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	{ timestamps: true },
 );
+
+commentSchema.methods.toJSON = function toJSON() {
+	const user = this;
+	const publicComment = _.pick(user.toObject(), [
+		"_id",
+		"postId",
+		"username",
+		"displayname",
+		"text",
+		"stats",
+		"hasReplies",
+		"createdAt",
+	]);
+
+	return publicComment;
+};
 
 const Comment = mongoose.model("Comment", commentSchema);
 

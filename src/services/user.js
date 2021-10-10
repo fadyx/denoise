@@ -5,101 +5,145 @@ import createError from "http-errors";
 import User from "../models/user.js";
 import RunUnitOfWork from "../database/RunUnitOfWork.js";
 
-const findActiveUserByUsername = async ({ username }, { session }) => {
-	const user = await User.findOne({ username }).session(session);
-	if (!user || user.inactive || user.banned) throw createError(404, "user is not found.");
+import jwt from "../utils/jwt.js";
+
+const registerUser = async (userDto, { session } = {}) => {
+	const user = new User(userDto);
+	await user.save({ session });
 	return user;
 };
 
-const findActiveUserByUsernameAs = async ({ username, asUsername }, { session }) => {
+const generateRefreshToken = async (user, { session } = {}) => {
+	const payload = {
+		username: user.username,
+		role: user.role,
+	};
+
+	const token = jwt.signRefreshToken(payload);
+	user.setToken(token);
+	await user.save({ session });
+	return token;
+};
+
+const generateAccessToken = async (user, refreshToken) => {
+	if (user.token !== refreshToken) throw createError(400, "invalid token.");
+	const payload = {
+		username: user.username,
+		role: user.role,
+	};
+	const token = jwt.signAccessToken(payload);
+	return token;
+};
+
+const findByUsername = async (username, { session } = {}) => {
 	const user = await User.findOne({ username }).session(session);
-	if (!user || user.inactive || user.banned || user.isBlockingOrBlockedBy(asUsername))
-		throw createError(404, "user is not found.");
+	if (!user || !user.isActive()) throw createError(404, "user is not found.");
 	return user;
 };
 
-const findActiveUserByUsernameAndUpdate = async ({ username, updates }, { session }) => {
-	const user = await findActiveUserByUsername({ username }, { session });
-	_.assign(user.profile, updates);
+const findByCredentials = async (username, password, { session } = {}) => {
+	const user = await findByUsername(username, { session });
+	const isCorrectPassword = await user.checkPassword(password);
+	if (!isCorrectPassword) throw createError(400, "invalid credentials.");
+	return user;
+};
+
+const terminate = async (username, password, { session } = {}) => {
+	const user = await findByCredentials(username, password, { session });
+	user.terminate();
 	await user.save({ session });
 };
 
-const blockUser = async ({ blockerUsername, blockedUsername }, { session }) => {
+const resetPassword = async (username, oldPassword, newPassword, { session } = {}) => {
+	const user = await findByCredentials(username, oldPassword, { session });
+	user.setPassword(newPassword);
+	await user.save({ session });
+	return user;
+};
+
+const logout = async (username, refreshToken, { session } = {}) => {
+	const user = await findByUsername(username, { session });
+	if (user.token !== refreshToken) throw createError(401, "invalid token.");
+	user.logout();
+	await user.save({ session });
+};
+
+const findByUsernameAndUpdate = async (username, updates, { session } = {}) => {
+	const user = await findByUsername(username, { session });
+	_.assign(user.profile, updates);
+	await user.save({ session });
+	return user;
+};
+
+const blockUser = async (blockerUsername, blockedUsername, { session } = {}) => {
+	if (blockerUsername === blockedUsername) throw createError(httpStatus.NOT_ACCEPTABLE, "cannot block oneself.");
 	const uow = async (uowSession) => {
 		const [blocker, blocked] = await Promise.all([
-			findActiveUserByUsername({ username: blockerUsername }, { uowSession }),
-			findActiveUserByUsername({ username: blockedUsername }, { uowSession }),
+			findByUsername(blockerUsername, { session: uowSession }),
+			findByUsername(blockedUsername, { session: uowSession }),
 		]);
-		if (blocker.isBlockingOrBlockedBy(blocked)) throw createError(httpStatus.NOT_FOUND, "user is not found.");
 		blocker.blockUser(blocked);
-		await Promise.all([blocker.save({ uowSession }), blocked.save({ uowSession })]);
+		await Promise.all([blocker.save({ session: uowSession }), blocked.save({ session: uowSession })]);
 	};
 
 	if (!session) await RunUnitOfWork(uow);
 	else await uow(session);
 };
 
-const unblockUser = async ({ blockerUsername, blockedUsername }, { session }) => {
+const unblockUser = async (blockerUsername, blockedUsername, { session } = {}) => {
+	if (blockerUsername === blockedUsername) throw createError(httpStatus.NOT_ACCEPTABLE, "cannot unblock oneself.");
 	const uow = async (uowSession) => {
 		const [blocker, blocked] = await Promise.all([
-			findActiveUserByUsername({ username: blockerUsername }, { uowSession }),
-			findActiveUserByUsername({ username: blockedUsername }, { uowSession }),
+			findByUsername(blockerUsername, { session: uowSession }),
+			findByUsername(blockedUsername, { session: uowSession }),
 		]);
-		if (!blocker.isBlockingOrBlockedBy(blocked)) throw createError(httpStatus.NOT_FOUND, "user is not found.");
 		blocker.unblockUser(blocked);
-		await Promise.all([blocker.save({ uowSession }), blocked.save({ uowSession })]);
+		await Promise.all([blocker.save({ session: uowSession }), blocked.save({ session: uowSession })]);
 	};
 
 	if (!session) await RunUnitOfWork(uow);
 	else await uow(session);
 };
 
-const followUser = async ({ followerUsername, followeeUsername }, { session }) => {
+const followUser = async (followerUsername, followeeUsername, { session } = {}) => {
+	if (followerUsername === followeeUsername) throw createError(httpStatus.NOT_ACCEPTABLE, "cannot follow oneself.");
+
 	const uow = async (uowSession) => {
 		const [follower, followee] = await Promise.all([
-			findActiveUserByUsername({ username: followerUsername }, { uowSession }),
-			findActiveUserByUsername({ username: followeeUsername }, { uowSession }),
+			findByUsername(followerUsername, { session: uowSession }),
+			findByUsername(followeeUsername, { session: uowSession }),
 		]);
-
-		if (follower.isBlockingOrBlockedBy(followeeUsername))
-			throw createError(httpStatus.NOT_FOUND, "user is not found.");
 		follower.followUser(followee);
-		await Promise.all([follower.save({ uowSession }), followee.save({ uowSession })]);
+		await Promise.all([follower.save({ session: uowSession }), followee.save({ session: uowSession })]);
 	};
 
 	if (!session) await RunUnitOfWork(uow);
 	else await uow(session);
 };
 
-const unfollowUser = async ({ followerUsername, followeeUsername }, { session }) => {
+const unfollowUser = async (followerUsername, followeeUsername, { session } = {}) => {
+	if (followerUsername === followeeUsername) throw createError(httpStatus.NOT_ACCEPTABLE, "cannot unfollow oneself.");
 	const uow = async (uowSession) => {
 		const [follower, followee] = await Promise.all([
-			findActiveUserByUsername({ username: followerUsername }, { uowSession }),
-			findActiveUserByUsername({ username: followeeUsername }, { uowSession }),
+			findByUsername(followerUsername, { session: uowSession }),
+			findByUsername(followeeUsername, { session: uowSession }),
 		]);
-
-		if (follower.isBlockingOrBlockedBy(followeeUsername))
-			throw createError(httpStatus.NOT_FOUND, "user is not found.");
 
 		follower.unfollowUser(followee);
-
-		await Promise.all([follower.save({ uowSession }), followee.save({ uowSession })]);
+		await Promise.all([follower.save({ session: uowSession }), followee.save({ session: uowSession })]);
 	};
 
 	if (!session) await RunUnitOfWork(uow);
 	else await uow(session);
 };
 
-const getUserProfileAs = async (profileFetcherUsername, profileUsername) => {
-	const [user, requestedUser] = await Promise.all([
-		findActiveUserByUsername({ username: profileFetcherUsername }),
-		findActiveUserByUsername({ username: profileUsername }),
-	]);
+const getUserProfileAs = async (fetcherUsername, profileUsername) => {
+	const requestedUser = await findByUsername(profileUsername);
 
-	if (user.isBlockingOrBlockedBy(requestedUser.username))
+	if (requestedUser.isBlockingOrBlockedBy(fetcherUsername))
 		throw createError(httpStatus.NOT_FOUND, "user is not found.");
 
-	const isFollowed = user.followees.includes(requestedUser.username);
+	const isFollowed = requestedUser.isFollowedBy(fetcherUsername);
 	const profile = { ...requestedUser.toJSON(), isFollowed };
 	return profile;
 };
@@ -137,13 +181,19 @@ const getBlockedUsersFor = async (username) => {
 };
 
 export default {
-	getBlockedUsersFor,
-	findActiveUserByUsername,
-	findActiveUserByUsernameAs,
-	findActiveUserByUsernameAndUpdate,
 	blockUser,
-	unblockUser,
+	findByCredentials,
+	findByUsername,
+	findByUsernameAndUpdate,
 	followUser,
-	unfollowUser,
+	generateAccessToken,
+	generateRefreshToken,
+	getBlockedUsersFor,
 	getUserProfileAs,
+	logout,
+	registerUser,
+	resetPassword,
+	terminate,
+	unblockUser,
+	unfollowUser,
 };

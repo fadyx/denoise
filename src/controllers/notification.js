@@ -10,29 +10,29 @@ import readNotificationUseCase from "../usecases/notification/readNotification.j
 import readAllNotificationUseCase from "../usecases/notification/readAllNotifications.js";
 
 const getNotifications = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username } = req.decodedAccessToken;
 	const { lastId } = req.params;
 	if (lastId && !validation.isValidObjectId(lastId)) throw httpError(httpStatus.NOT_FOUND, "invalid last id.");
-	const notifications = await getNotificationsUseCase(decodedAccessToken.username, lastId);
+	const notifications = await getNotificationsUseCase(username, lastId);
 	const payload = { notifications };
 	const response = SuccessResponse("fetched notifications successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const readNotification = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
+	const { username } = req.decodedAccessToken;
 	const { notificationId } = req.params;
 	if (!validation.isValidObjectId(notificationId))
 		throw httpError(httpStatus.NOT_FOUND, "notification was not found.");
-	const notification = await readNotificationUseCase(notificationId, decodedAccessToken.username);
+	const notification = await readNotificationUseCase(notificationId, username);
 	const payload = { notification };
 	const response = SuccessResponse("marked notification as read successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
 });
 
 const readAllNotification = catchAsync(async (req, res) => {
-	const { decodedAccessToken } = req;
-	await readAllNotificationUseCase(decodedAccessToken.username);
+	const { username } = req.decodedAccessToken;
+	await readAllNotificationUseCase(username);
 	const response = SuccessResponse("marked all notifications as read successfully.");
 	return res.status(httpStatus.OK).json(response);
 });

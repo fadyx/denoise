@@ -1,13 +1,16 @@
-class ApiError extends Error {
-	constructor(statusCode, message, errors, stack = "") {
-		super(message);
-		this.statusCode = statusCode;
-		this.errors = errors;
-		if (stack) {
-			this.stack = stack;
-		} else {
-			Error.captureStackTrace(this, this.constructor);
-		}
+import httpStatus from "http-status";
+
+import ExtendableError from "./ExtendableError.js";
+
+class ApiError extends ExtendableError {
+	constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false }) {
+		super({
+			message,
+			errors,
+			status,
+			isPublic,
+			stack,
+		});
 	}
 }
 

@@ -4,11 +4,11 @@ import { NotificationType } from "../constants/NotificationType.js";
 
 import Notification from "../models/notification.js";
 
-const removeNotificationsByUsername = async ({ username }, { session }) => {
+const removeNotificationsByUsername = async (username, { session } = {}) => {
 	await Notification.deleteMany({ owner: username }, { session });
 };
 
-const getNotificationsByUsername = async ({ username, lastId }, { session }) => {
+const getNotificationsByUsername = async (username, lastId, { session } = {}) => {
 	const idMatch = () => (lastId ? { $lt: lastId } : undefined);
 
 	const notifications = await Notification.aggregate(
@@ -25,12 +25,12 @@ const getNotificationsByUsername = async ({ username, lastId }, { session }) => 
 	return notifications;
 };
 
-const getNotificationById = async ({ notificationId }, { session }) => {
+const getNotificationById = async (notificationId, { session } = {}) => {
 	const notification = Notification.findById(notificationId).session(session);
 	return notification;
 };
 
-const markNotificationAsReadByUsername = async ({ notificationId, username }, { session }) => {
+const markNotificationAsReadByUsername = async (notificationId, username, { session }) => {
 	const notification = Notification.findById(notificationId);
 	if (!notification || !notification.recipients.includes(username))
 		throw httpError(httpStatus.NOT_FOUND, "notification was not found.");
@@ -38,7 +38,7 @@ const markNotificationAsReadByUsername = async ({ notificationId, username }, { 
 	await notification.save({ timestamps: false, session });
 };
 
-const markAllNotificationAsReadForUser = async ({ username }, { session }) => {
+const markAllNotificationAsReadForUser = async (username, { session } = {}) => {
 	await Notification.updateMany(
 		{ recipients: { $in: [username] } },
 		{ $addToSet: { read: username } },
@@ -46,7 +46,7 @@ const markAllNotificationAsReadForUser = async ({ username }, { session }) => {
 	);
 };
 
-const pushStarNotification = async ({ recipient, starer }, { session }) => {
+const pushStarNotification = async (recipient, starer, { session } = {}) => {
 	const exists = await Notification.findOne({ type: NotificationType.STAR, recipients: { $in: [recipient] }, starer });
 	if (exists) return;
 
@@ -59,7 +59,7 @@ const pushStarNotification = async ({ recipient, starer }, { session }) => {
 	await notification.save({ session });
 };
 
-const pushLikeNotification = async ({ sender, post }, { session }) => {
+const pushLikeNotification = async (sender, post, { session } = {}) => {
 	const existingNotification = await Notification.findOne({ type: NotificationType.LIKE, postId: post._id });
 	if (existingNotification) {
 		existingNotification.read = [];
@@ -83,7 +83,7 @@ const pushLikeNotification = async ({ sender, post }, { session }) => {
 	return notification.save({ session });
 };
 
-const popLikeNotification = async ({ sender, post }, { session }) => {
+const popLikeNotification = async (sender, post, { session } = {}) => {
 	const existingNotification = await Notification.findOne({ type: NotificationType.LIKE, postId: post._id });
 	if (!existingNotification) return;
 
@@ -93,7 +93,7 @@ const popLikeNotification = async ({ sender, post }, { session }) => {
 	else await existingNotification.save({ timestamps: false, session });
 };
 
-const pushCommentNotification = async ({ sender, post }, { session }) => {
+const pushCommentNotification = async (sender, post, { session } = {}) => {
 	const existingNotification = await Notification.findOne({ type: NotificationType.COMMENT, postId: post._id });
 	if (existingNotification) {
 		existingNotification.read = [];
@@ -117,7 +117,7 @@ const pushCommentNotification = async ({ sender, post }, { session }) => {
 	return notification.save({ session });
 };
 
-const popCommentNotification = async ({ sender, post }, { session }) => {
+const popCommentNotification = async (sender, post, { session } = {}) => {
 	const existingNotification = await Notification.findOne({ type: NotificationType.COMMENT, postId: post._id });
 	if (!existingNotification) return;
 
@@ -127,11 +127,11 @@ const popCommentNotification = async ({ sender, post }, { session }) => {
 	else await existingNotification.save({ timestamps: false, session });
 };
 
-const deleteNotificationsByPostId = async ({ postId }, { session }) => {
+const deleteNotificationsByPostId = async (postId, { session } = {}) => {
 	await Notification.deleteMany({ postId }, { session });
 };
 
-const unsubscribeUserFromUserPosts = async ({ nonsubscriber, owner }, { session }) => {
+const unsubscribeUserFromUserPosts = async (nonsubscriber, owner, { session } = {}) => {
 	await Notification.updateMany({ owner }, { $pull: { recipients: nonsubscriber } }, { session });
 };
 

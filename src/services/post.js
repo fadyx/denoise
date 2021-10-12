@@ -300,17 +300,21 @@ const commentOnPostAs = async (postId, username, commentDto, { session } = {}) =
 
 const getNewsfeedForUser = async (username, type, lastPostId) => {
 	const $match = {};
-	if (lastPostId) $match._id = { $lt: mongoose.Types.ObjectId(lastPostId) };
-	const limit = 20;
-	$match.username = { $nin: ["$blocking", "$blocked"] };
+	const idMatch = (id) => (id ? { _id: { $lt: mongoose.Types.ObjectId(id) } } : {});
 
+	const usernameMatch = (timelineType) =>
+		timelineType === "followees"
+			? { username: { $in: ["$followees"] } }
+			: { username: { $nin: ["$blocked", "$blocking"] } };
+
+	const limit = 20;
 	let sort = { _id: -1 };
 
 	switch (type) {
 		case "latest":
 			break;
 		case "followees":
-			$match.username = { $in: "$following" };
+			$match.username = { $in: ["$followees"] };
 			break;
 		case "hot":
 			sort = { "stats.likes": -1 };
@@ -331,12 +335,11 @@ const getNewsfeedForUser = async (username, type, lastPostId) => {
 				pipeline: [
 					{
 						$match: {
+							...idMatch(lastPostId),
+							...usernameMatch(type),
+							deleted: false,
 							createdAt: {
 								$gte: new Date(new Date().getTime() - process.env.LIFESPAN_MILLISECONDS),
-							},
-							deleted: false,
-							username: {
-								$nin: ["$blocked", "$blocking"],
 							},
 						},
 					},

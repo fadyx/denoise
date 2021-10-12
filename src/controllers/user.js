@@ -37,14 +37,14 @@ const getUser = catchAsync(async (req, res) => {
 	return res.status(httpStatus.OK).json(response);
 });
 
-const updateProfile = async (req, res) => {
+const updateProfile = catchAsync(async (req, res) => {
 	const { username } = req.decodedAccessToken;
 	const updates = req.body;
 	const user = await updateProfileUseCase(username, updates);
 	const payload = { user };
 	const response = SuccessResponse("updated user successfully.", payload);
 	return res.status(httpStatus.OK).json(response);
-};
+});
 
 const follow = catchAsync(async (req, res) => {
 	const { username: followerUsername } = req.decodedAccessToken;

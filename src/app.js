@@ -11,8 +11,11 @@ import healthController from "./controllers/health.js";
 import { successLogger, failureLogger } from "./lib/accessLogger.js";
 import error from "./middleware/error.js";
 
+const port = process.env.PORT || 3013;
+
 const app = express();
 
+app.set("port", port);
 app.set("x-powered-by", false);
 app.set("etag", false);
 app.set("case sensitive routing", false);

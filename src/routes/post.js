@@ -7,6 +7,10 @@ import controller from "../controllers/post.js";
 
 const router = express.Router({ caseSensitive: true, strict: true });
 
+// TODO: get posts by hashtags
+// TODO: get posts by flags/tags
+// TODO: upvote downvote comment/reply
+
 router.post("/", auth, validate(postSchemas.create), controller.createPost);
 router.get("/:postId", auth, controller.getPost);
 router.post("/:postId/like", auth, controller.likePost);

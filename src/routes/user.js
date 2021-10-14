@@ -20,4 +20,6 @@ router.post("/:username/block", auth, controller.block);
 router.post("/:username/unblock", auth, controller.unblock);
 router.get("/:username/posts", auth, controller.userPosts);
 
+// TODO: search users by username
+
 export default router;

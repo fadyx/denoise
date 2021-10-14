@@ -60,4 +60,6 @@ const disconnect = async () => {
 	}
 };
 
-export default { connect, disconnect };
+const state = () => mongoose.connection.readyState;
+
+export default { connect, disconnect, state };

@@ -3,15 +3,14 @@ import http from "http";
 import database from "./database/database.js";
 import app from "./app.js";
 import Logger from "./lib/logger.js";
+import terminus from "./lib/terminus.js";
 
 const logger = new Logger("index");
-
-const port = process.env.PORT || 3013;
-
-app.set("port", port);
-
 const server = http.createServer(app);
+const port = app.get("port");
+terminus(server);
 
+// server events
 async function onListening() {
 	const addr = server.address();
 	const bind = typeof addr === "string" ? `pipe ${addr}` : `port ${addr.port}`;
@@ -19,7 +18,7 @@ async function onListening() {
 }
 
 async function onClose() {
-	logger.debug("Server is shutdown...");
+	logger.debug("Server is closed...");
 }
 
 async function onError(error) {
@@ -37,9 +36,9 @@ async function onError(error) {
 			process.exit(1);
 		case "EADDRINUSE":
 			logger.debug(`${bind} is already in use.`);
-			process.exit(2);
+			process.exit(1);
 		default:
-			process.exit(3);
+			process.exit(1);
 	}
 }
 
@@ -47,32 +46,26 @@ server.on("error", onError);
 server.on("listening", onListening);
 server.on("close", onClose);
 
+// process events
 process.on("unhandledRejection", async (reason, promise) => {
 	logger.debug("Unhandled rejection at promise: ", promise, "reason: ", reason);
 	logger.log(reason);
-	await database.disconnect();
 	await server.close();
-	process.exit(7);
+	await database.disconnect();
+	process.exit(1);
 });
 
 process.on("uncaughtException", async (error) => {
 	logger.debug("Uncaught Exception thrown. Error: ", error);
 	logger.log(error);
-	await database.disconnect();
 	await server.close();
-	process.exit(8);
+	await database.disconnect();
+	process.exit(1);
 });
 
-const gracefulExit = async () => {
-	await database.disconnect();
-	await server.close();
-	process.exitCode = 0;
-};
+process.on("exit", (code) => logger.debug(`process exiting with code: ${code}.`));
 
-process.on("SIGINT", gracefulExit);
-process.on("SIGTERM", gracefulExit);
-process.on("exit", (code) => logger.debug(`Exiting with code: ${code}.`));
-
+// start running the server
 const bootstrap = async () => {
 	logger.debug(`Starting server v${process.env.npm_package_version}...`);
 	logger.debug(`Environment: ${process.env.NODE_ENV}...`);
@@ -81,7 +74,7 @@ const bootstrap = async () => {
 		await database.connect();
 	} catch (error) {
 		logger.log(error);
-		process.exit(4);
+		process.exit(1);
 	}
 
 	try {
@@ -89,7 +82,7 @@ const bootstrap = async () => {
 	} catch (error) {
 		await database.disconnect();
 		logger.log(error);
-		process.exit(5);
+		process.exit(1);
 	}
 };
 

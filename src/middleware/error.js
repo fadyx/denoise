@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import httpError from "http-errors";
 import httpStatus from "http-status";
 import Joi from "joi";
+import { RateLimiterRes } from "rate-limiter-flexible";
 
 import Logger from "../lib/logger.js";
 import ApiError from "../utils/ApiError.js";
@@ -61,6 +62,12 @@ const converter = async (err, req, res, next) => {
 					stack: err.stack,
 				}),
 			);
+		}
+
+		if (err instanceof RateLimiterRes) {
+			const secs = Math.round(err.msBeforeNext / 1000) || 1;
+			res.set("Retry-After", String(secs));
+			return next(new ApiError({ message: "too many requests.", status: 429 }));
 		}
 	}
 	return next(err);

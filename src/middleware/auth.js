@@ -11,6 +11,7 @@ const auth = catchAsync(async (req, res, next) => {
 	const token = req.headers.authorization.split(" ").pop();
 	const decodedAccessToken = jwt.verifyAccessToken(token);
 	req.decodedAccessToken = decodedAccessToken;
+	req.username = decodedAccessToken.username;
 	return next();
 });
 

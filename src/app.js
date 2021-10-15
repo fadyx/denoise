@@ -6,10 +6,10 @@ import helmet from "helmet";
 
 import routers from "./routes/index.js";
 import notFoundController from "./controllers/notFound.js";
-import healthController from "./controllers/health.js";
 
 import { successLogger, failureLogger } from "./lib/accessLogger.js";
 import error from "./middleware/error.js";
+import rateLimiter from "./middleware/rateLimiter.js";
 
 const port = process.env.PORT || 3013;
 
@@ -29,6 +29,8 @@ app.use(express.urlencoded({ extended: false }));
 
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
+app.use(rateLimiter.limitByIp);
+
 app.use((req, res, next) => {
 	if (req.is("application/json") || !req.get("Content-Type")) return next();
 	return next(httpError(406, "invalid request type."));
@@ -44,7 +46,6 @@ app.use(
 );
 
 app.use("/api", routers);
-app.get("/api/health", healthController);
 app.all("*", notFoundController);
 app.use(error.converter);
 app.use(error.handler);

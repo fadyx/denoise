@@ -2,6 +2,10 @@ import httpStatus from "http-status";
 
 import catchAsync from "../middleware/catchAsyncErrors.js";
 
+import loginConsecutiveFailsRateLimiterByUsername from "../lib/rateLimiter/loginRateLimiter.js";
+import registerConsecutiveSuccessesRateLimiterByIpAddress from "../lib/rateLimiter/registerRateLimiter.js";
+import registerConsecutiveFailsRateLimiterByIpAddress from "../lib/rateLimiter/registerRateLimiterByIp.js";
+
 import { SuccessResponse } from "../utils/apiResponse.js";
 
 import registerUseCase from "../usecases/auth/register.js";
@@ -13,16 +17,39 @@ import terminateUseCase from "../usecases/auth/terminate.js";
 
 const register = catchAsync(async (req, res) => {
 	const userDto = req.body;
-	const payload = await registerUseCase(userDto);
-	const response = SuccessResponse("registered user successfully.", payload);
-	return res.status(httpStatus.CREATED).json(response);
+
+	const failedAttempts = await registerConsecutiveFailsRateLimiterByIpAddress.get(req.ip);
+	if (failedAttempts && failedAttempts.remainingPoints <= 0) throw failedAttempts;
+
+	const succeededAttempts = await registerConsecutiveSuccessesRateLimiterByIpAddress.get(req.ip);
+	if (succeededAttempts && succeededAttempts.remainingPoints <= 0) throw succeededAttempts;
+
+	try {
+		const payload = await registerUseCase(userDto);
+		const response = SuccessResponse("registered user successfully.", payload);
+		await registerConsecutiveSuccessesRateLimiterByIpAddress.consume(req.ip);
+		return res.status(httpStatus.CREATED).json(response);
+	} catch (error) {
+		await registerConsecutiveFailsRateLimiterByIpAddress.consume(req.ip);
+		throw error;
+	}
 });
 
 const login = catchAsync(async (req, res) => {
 	const { username, password } = req.body;
-	const payload = await loginUseCase(username, password);
-	const response = SuccessResponse("logged in user successfully.", payload);
-	return res.status(200).json(response);
+
+	const failedAttempts = await loginConsecutiveFailsRateLimiterByUsername.get(username);
+	if (failedAttempts && failedAttempts.remainingPoints <= 0) throw failedAttempts;
+
+	try {
+		const payload = await loginUseCase(username, password);
+		const response = SuccessResponse("logged in user successfully.", payload);
+		await loginConsecutiveFailsRateLimiterByUsername.delete(username);
+		return res.status(200).json(response);
+	} catch (error) {
+		await loginConsecutiveFailsRateLimiterByUsername.consume(username);
+		throw error;
+	}
 });
 
 const resetPassword = catchAsync(async (req, res) => {

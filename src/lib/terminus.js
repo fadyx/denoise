@@ -1,6 +1,7 @@
 import { createTerminus } from "@godaddy/terminus";
 
 import db from "../database/database.js";
+import redis from "../cache/redis.js";
 
 import Logger from "./logger.js";
 
@@ -22,13 +23,20 @@ const mongoDBHealthCheck = () => {
 	}
 };
 
+const redisDBHealthCheck = () => {
+	const connected = redis.state();
+	return connected ? "CONNECTED" : "DISCONNECTED";
+};
+
 const healthCheck = async ({ state }) => {
 	const { isShuttingDown } = state;
 	const databaseState = mongoDBHealthCheck();
+	const cacheDatabaseState = redisDBHealthCheck();
 
 	return {
 		isShuttingDown,
 		databaseState,
+		cacheDatabaseState,
 	};
 };
 
@@ -56,7 +64,7 @@ const onSignal = () => {
 	logger.debug("Starting a cleanup...");
 
 	// cleanup logic, such as closing database connections
-	return Promise.all([db.disconnect()]);
+	return Promise.all([db.disconnect(), redis.quit()]);
 };
 
 function onShutdown() {

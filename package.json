@@ -65,7 +65,6 @@
 		"rate-limiter-flexible": "^2.2.4",
 		"redis": "^3.1.2",
 		"socket.io": "^4.2.0",
-		"svgo": "^2.6.0",
 		"twitter-text": "^3.1.0"
 	},
 	"devDependencies": {

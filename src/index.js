@@ -1,6 +1,7 @@
 import http from "http";
 
 import database from "./database/database.js";
+import redis from "./cache/redis.js";
 import app from "./app.js";
 import Logger from "./lib/logger.js";
 import terminus from "./lib/terminus.js";
@@ -25,6 +26,7 @@ async function onError(error) {
 	logger.log(error);
 
 	await database.disconnect();
+	await redis.quit();
 
 	if (error.syscall !== "listen") throw error;
 
@@ -52,6 +54,7 @@ process.on("unhandledRejection", async (reason, promise) => {
 	logger.log(reason);
 	await server.close();
 	await database.disconnect();
+	await redis.quit();
 	process.exit(1);
 });
 
@@ -60,6 +63,7 @@ process.on("uncaughtException", async (error) => {
 	logger.log(error);
 	await server.close();
 	await database.disconnect();
+	await redis.quit();
 	process.exit(1);
 });
 
@@ -81,6 +85,7 @@ const bootstrap = async () => {
 		await server.listen(app.get("port"));
 	} catch (error) {
 		await database.disconnect();
+		await redis.quit();
 		logger.log(error);
 		process.exit(1);
 	}

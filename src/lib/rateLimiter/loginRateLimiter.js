@@ -3,17 +3,22 @@ import { RateLimiterRedis, RateLimiterMemory } from "rate-limiter-flexible";
 
 const redisClient = createClient({ enable_offline_queue: false });
 
+const points = Number.parseInt(process.env.RATE_LIMITER_LOGIN_MAX_FAILURES_PER_USERNAME, 10);
+const duration = Number.parseInt(process.env.RATE_LIMITER_LOGIN_MAX_FAILURES_PER_USERNAME_DURATION, 10);
+const blockDuration = Number.parseInt(process.env.RATE_LIMITER_LOGIN_MAX_FAILURES_PER_USERNAME_BLOCK_DURATION, 10);
+
 const rateLimiterMemory = new RateLimiterMemory({
-	points: 60,
-	duration: 60,
+	points,
+	blockDuration,
+	duration,
 });
 
 const loginConsecutiveFailsRateLimiterByUsername = new RateLimiterRedis({
 	storeClient: redisClient,
-	points: 3, // 3 attempts
-	duration: 60, // during 60 seconds
+	points,
+	duration,
 	execEvenly: false,
-	blockDuration: 60,
+	blockDuration,
 	insuranceLimiter: rateLimiterMemory,
 	keyPrefix: "login_consecutive_fails_rate_limiter",
 });

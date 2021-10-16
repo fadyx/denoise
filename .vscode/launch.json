@@ -1,0 +1,22 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Launch Server",
+			"skipFiles": ["<node_internals>/**"],
+			"runtimeArgs": ["--require=dotenv/config"],
+			"program": "${workspaceFolder}/src/index.js",
+			"env": {},
+			"envFile": "${workspaceFolder}/.development.env",
+			"stopOnEntry": true,
+			"smartStep": true,
+			"args": [],
+			"console": "internalConsole",
+			"showAsyncStacks": true
+		}
+	]
+}
+
+// DEBUG=server:* npx nodemon -r dotenv/config src/index.js dotenv_config_path=.development.env

@@ -6,14 +6,20 @@
 		"christian-kohler.npm-intellisense",
 		"christian-kohler.path-intellisense",
 		"codezombiech.gitignore",
+		"cweijan.vscode-redis-client",
+		"davidanson.vscode-markdownlint",
 		"dbaeumer.vscode-eslint",
 		"donjayamanne.githistory",
+		"dsznajder.es7-react-js-snippets",
 		"eamodio.gitlens",
+		"ecmel.vscode-html-css",
 		"editorconfig.editorconfig",
 		"eg2.vscode-npm-script",
 		"esbenp.prettier-vscode",
 		"fabiospampinato.vscode-diff",
+		"firefox-devtools.vscode-firefox-debug",
 		"formulahendry.code-runner",
+		"github.github-vscode-theme",
 		"github.vscode-pull-request-github",
 		"hediet.vscode-drawio",
 		"humao.rest-client",
@@ -31,7 +37,9 @@
 		"streetsidesoftware.code-spell-checker",
 		"usernamehw.errorlens",
 		"visualstudioexptteam.vscodeintellicode",
+		"wayou.vscode-todo-highlight",
 		"wix.vscode-import-cost",
-		"wmaurer.change-case"
+		"wmaurer.change-case",
+		"zignd.html-css-class-completion"
 	]
 }
